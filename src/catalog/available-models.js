@@ -182,6 +182,7 @@ function encodeAvailableModel(model) {
   if (model.capabilities.reasoning) parts.push(vi(9, 1));
   if (model.capabilities.vision) parts.push(vi(10, 1));
   parts.push(vi(19, 1));    // supports_non_max_mode
+  parts.push(vi(23, 1));    // is_user_added (keep the selected native BYOK entry alive until migration)
   if (model.contextWindow) parts.push(vi(15, model.contextWindow));
   if (model.contextOptions && model.contextOptions.length) {
     const maxContext = model.contextOptions.reduce((max, option) => Math.max(max, option.value || 0), 0);
