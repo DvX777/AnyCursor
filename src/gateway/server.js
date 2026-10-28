@@ -23,6 +23,7 @@ const nodeCrypto = require('crypto');
 const { loadConfig } = require('../config/load');
 const { buildRegistry } = require('../catalog/registry');
 const { transformCatalog } = require('../catalog/response');
+const providers = require('../providers');
 
 const CONFIG_PATH = process.env.ANY_CURSOR_CONFIG
   || path.join(__dirname, '..', '..', 'config', 'anycursor.json');
@@ -229,9 +230,6 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
     const resolvedRoute = registry ? registry.resolve(parsed.modelId) : { route: 'native' };
     const byokModel = resolvedRoute.route === 'byok' ? resolvedRoute.model : null;
     const byokProvider = byokModel && CONFIG ? CONFIG.providers[byokModel.provider] : null;
-    if (byokModel && byokModel.api !== 'openai-compatible') {
-      throw new Error(`provider adapter "${byokModel.api}" is not implemented yet`);
-    }
     if (byokModel) parsed.modelId = byokModel.model;
     const messages = adapter.buildMessages(parsed);
     querySeq = Math.max(0, (parsed.nextInteractionQueryId || 1) - 1);
@@ -269,7 +267,7 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
       const creds = byokModel
         ? {
             apiKey: byokModel.apiKey || (byokProvider && byokProvider.apiKey) || '',
-            baseUrl: byokModel.baseUrl || (byokProvider && byokProvider.baseUrl) || '',
+            baseUrl: byokModel.baseUrl || (byokProvider && (byokProvider.baseUrl || byokProvider.endpoint)) || '',
           }
         : fallbackCreds;
       const endpoint = byokModel
@@ -277,10 +275,27 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
         : '';
       const usedFallbackCreds = !byokModel
         && (fallbackCreds.apiKey !== parsed.apiKey || fallbackCreds.baseUrl !== parsed.baseUrl);
+      const providerAdapter = providers.getAdapter(byokModel ? byokModel.api : 'openai-compatible');
+      const providerOptions = byokModel
+        ? {
+            headers: (byokProvider && byokProvider.headers) || {},
+            version: (byokProvider && byokProvider.version) || '',
+            deployment: (byokProvider && byokProvider.deployment) || '',
+            apiVersion: (byokProvider && byokProvider.apiVersion) || '',
+            region: (byokProvider && byokProvider.region) || '',
+            accessKeyId: (byokProvider && byokProvider.accessKeyId) || '',
+            secretAccessKey: (byokProvider && byokProvider.secretAccessKey) || '',
+            sessionToken: (byokProvider && byokProvider.sessionToken) || '',
+            maxOutput: byokModel.maxOutput,
+            reasoning: byokModel.capabilities.reasoning,
+            effort: byokModel.effort ? byokModel.effort.default : undefined,
+            baseOverride: byokModel.api === 'openai-compatible' ? (PROVIDER_BASE || undefined) : undefined,
+          }
+        : {};
       for (let round = 0; round < MAX_ROUNDS; round++) {
         rounds = round + 1;
         const forceText = round === MAX_ROUNDS - 1;
-        const res = await adapter.streamChat({
+        const res = await providerAdapter.streamChat({
           modelId: parsed.modelId,
           apiKey: creds.apiKey,
           baseUrl: creds.baseUrl,
@@ -290,7 +305,8 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
           messages,
           tools: forceText ? null : adapter.toolsForMode(parsed.mode, parsed.mcpTools, { isSubagent: parsed.isSubagent }),
           toolChoice: forceText ? 'none' : 'auto',
-        }, onEvent, abort.signal, PROVIDER_BASE || undefined);
+          ...providerOptions,
+        }, onEvent, abort.signal);
 
         visible += res.text;
         finalText = res.text;
@@ -798,11 +814,7 @@ const h1 = http.createServer((req, res) => {
         let merged = false;
         if (upRes.statusCode === 200 && CONFIG && CONFIG.models.length) {
           try {
-            const transformed = transformCatalog(
-              original,
-              upRes.headers,
-              CONFIG.models.filter((model) => model.api === 'openai-compatible'),
-            );
+            const transformed = transformCatalog(original, upRes.headers, CONFIG.models);
             out = transformed.body;
             merged = true;
             log({

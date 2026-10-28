@@ -1734,8 +1734,11 @@ async function streamChat(opts, onEvent, signal, baseOverride) {
     // OpenCode Go requires a per-conversation session id and a real client UA.
     'x-opencode-session': opts.conversationId || opts.runId || crypto.randomUUID(),
     'user-agent': 'cursor-local-proxy/1.0',
+    ...(opts.headers || {}),
   };
-  if (opts.apiKey) headers.authorization = 'Bearer ' + opts.apiKey;
+  if (opts.apiKey && !headers.authorization && !headers['api-key'] && !headers['x-api-key']) {
+    headers.authorization = 'Bearer ' + opts.apiKey;
+  }
 
   const body = {
     model: opts.modelId,
@@ -1746,6 +1749,8 @@ async function streamChat(opts, onEvent, signal, baseOverride) {
     body.tools = opts.tools;
     body.tool_choice = opts.toolChoice || 'auto';
   }
+  if (opts.maxOutput) body.max_tokens = opts.maxOutput;
+  if (opts.effort && opts.reasoningEffortField) body[opts.reasoningEffortField] = opts.effort;
 
   const res = await fetch(url, {
     method: 'POST',

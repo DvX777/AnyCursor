@@ -25,13 +25,17 @@ Working now:
 - localhost health endpoint and web dashboard
 - Cursor extension skeleton that starts/supervises the gateway on activation
 
-Current BYOK execution supports the OpenAI-compatible chat-completions path.
-Anthropic, Google, Azure OpenAI and Bedrock configuration/model metadata are
-accepted, but their request adapters are the next provider phase.
+Current provider adapters:
+
+- OpenAI-compatible: streaming text/thinking, tools, vision
+- Anthropic Messages: streaming text/thinking, tool use/results
+- Google Gemini: streaming text/thinking, function calls
+- Azure OpenAI: OpenAI chat-completions path with deployment/api-version
+- AWS Bedrock: Converse with SigV4 (non-streaming first version)
 
 Next:
 
-- provider adapters for Anthropic, Google, Azure and Bedrock
+- Bedrock streaming (ConverseStream)
 - native model picker verification for effort/context/fast
 - shortcut repair and pre-warmed gateway service
 - settings UI editing
