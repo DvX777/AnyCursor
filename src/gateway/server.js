@@ -22,6 +22,7 @@ const nodeCrypto = require('crypto');
 
 const { loadConfig } = require('../config/load');
 const { buildRegistry } = require('../catalog/registry');
+const { transformCatalog } = require('../catalog/response');
 
 const CONFIG_PATH = process.env.ANY_CURSOR_CONFIG
   || path.join(__dirname, '..', '..', 'config', 'anycursor.json');
@@ -49,7 +50,7 @@ const CONFIG_PORT = CONFIG && CONFIG.gateway ? CONFIG.gateway.port : undefined;
 const CONFIG_HOST = CONFIG && CONFIG.gateway ? CONFIG.gateway.host : undefined;
 const PORT = Number(arg('port', process.env.ANY_CURSOR_PORT || process.env.CURSOR_PROXY_PORT || CONFIG_PORT || 43110));
 const HOST = arg('host', process.env.ANY_CURSOR_HOST || process.env.CURSOR_PROXY_HOST || CONFIG_HOST || '127.0.0.1');
-const DEFAULT_UPSTREAM = arg('upstream', process.env.ANY_CURSOR_UPSTREAM || process.env.CURSOR_PROXY_UPSTREAM || 'https://api2.cursor.sh');
+const DEFAULT_UPSTREAM = arg('upstream', process.env.ANY_CURSOR_UPSTREAM || process.env.CURSOR_PROXY_UPSTREAM || (CONFIG && CONFIG.gateway && CONFIG.gateway.upstream) || 'https://api2.cursor.sh');
 const DATA_DIR = process.env.ANY_CURSOR_DATA_DIR
   || (CONFIG && CONFIG.gateway && CONFIG.gateway.dataDir)
   || path.join(__dirname, '..', '..', 'data');
@@ -738,23 +739,68 @@ const h1 = http.createServer((req, res) => {
       headers: redact(headers),
     });
 
+    const pathOnly = target.pathname;
+    const shouldTransform = pathOnly === '/aiserver.v1.AiService/AvailableModels';
     const up = https.request(target, { method: req.method, headers }, (upRes) => {
-      res.writeHead(upRes.statusCode || 502, upRes.headers);
+      if (!shouldTransform) {
+        res.writeHead(upRes.statusCode || 502, upRes.headers);
+        let rsize = 0;
+        const rchunks = [];
+        upRes.on('data', (c) => {
+          rsize += c.length;
+          if (rsize <= MAX_CAPTURE) rchunks.push(c);
+          res.write(c);
+        });
+        upRes.on('end', () => {
+          const rsaved = saveBody(id, 'res', Buffer.concat(rchunks));
+          log({
+            id, dir: 'res', protocol: 'h1', status: upRes.statusCode,
+            ms: Date.now() - started, contentType: upRes.headers['content-type'],
+            bytes: rsize, saved: rsaved,
+          });
+          res.end();
+        });
+        upRes.on('error', (e) => { log({ id, dir: 'res-error', error: String(e) }); res.destroy(e); });
+        return;
+      }
+
       let rsize = 0;
       const rchunks = [];
       upRes.on('data', (c) => {
         rsize += c.length;
         if (rsize <= MAX_CAPTURE) rchunks.push(c);
-        res.write(c);
       });
       upRes.on('end', () => {
-        const rsaved = saveBody(id, 'res', Buffer.concat(rchunks));
+        const original = Buffer.concat(rchunks);
+        let out = original;
+        let merged = false;
+        if (upRes.statusCode === 200 && CONFIG && CONFIG.models.length) {
+          try {
+            const transformed = transformCatalog(original, upRes.headers, CONFIG.models);
+            out = transformed.body;
+            merged = true;
+            log({
+              id, ts: new Date().toISOString(), dir: 'catalog-merge', protocol: 'h1',
+              url: req.url, models: transformed.models, encoding: transformed.encoding,
+              nativeBytes: original.length, mergedBytes: out.length,
+            });
+          } catch (error) {
+            log({
+              id, ts: new Date().toISOString(), dir: 'catalog-merge-error', protocol: 'h1',
+              url: req.url, error: String(error && error.message ? error.message : error),
+            });
+          }
+        }
+        const responseHeaders = { ...upRes.headers };
+        delete responseHeaders['transfer-encoding'];
+        responseHeaders['content-length'] = String(out.length);
+        res.writeHead(upRes.statusCode || 502, responseHeaders);
+        res.end(out);
         log({
           id, dir: 'res', protocol: 'h1', status: upRes.statusCode,
           ms: Date.now() - started, contentType: upRes.headers['content-type'],
-          bytes: rsize, saved: rsaved,
+          bytes: out.length, saved: saveBody(id, 'res', out), catalogMerged: merged,
         });
-        res.end();
       });
       upRes.on('error', (e) => { log({ id, dir: 'res-error', error: String(e) }); res.destroy(e); });
     });

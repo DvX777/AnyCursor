@@ -16,15 +16,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "dataDir": {
+          "type": "string"
+        },
         "host": {
           "type": "string",
           "default": "127.0.0.1"
-        },
-        "port": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 65535,
-          "default": 43110
         },
         "logLevel": {
           "enum": [
@@ -36,7 +33,16 @@
           ],
           "default": "info"
         },
-        "dataDir": {
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 43110
+        },
+        "upstream": {
+          "type": "string"
+        },
+        "workspace": {
           "type": "string"
         }
       }

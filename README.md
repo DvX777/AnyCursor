@@ -20,16 +20,22 @@ Working now:
 - Cursor local history reader (`composerHeaders`, `cursorDiskKV`, transcripts)
 - gateway skeleton with h1/h2c forwarding, BYOK live-turn handling, and raw
   native passthrough routing
+- append-only `AvailableModels` merge with display names, effort, context and
+  fast metadata
 - localhost health endpoint and web dashboard
 - Cursor extension skeleton that starts/supervises the gateway on activation
 
+Current BYOK execution supports the OpenAI-compatible chat-completions path.
+Anthropic, Google, Azure OpenAI and Bedrock configuration/model metadata are
+accepted, but their request adapters are the next provider phase.
+
 Next:
 
-- merge AnyCursor models into `AvailableModels`
-- native model picker display names/effort/context/fast parameters
-- full provider adapters
+- provider adapters for Anthropic, Google, Azure and Bedrock
+- native model picker verification for effort/context/fast
 - shortcut repair and pre-warmed gateway service
 - settings UI editing
+- native/BYOK route-switch tests
 
 ## Run the gateway
 
