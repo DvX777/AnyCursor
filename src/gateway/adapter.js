@@ -1515,9 +1515,15 @@ function parseRunRequest(accumulated) {
 }
 
 /* ---------------- provider call ---------------- */
-function providerUrl(baseUrl) {
+function providerUrl(baseUrl, endpoint) {
   const base = (baseUrl || '').replace(/\/+$/, '');
-  if (!base) throw new Error('no base URL in run_request (BYOK credentials missing)');
+  if (endpoint) {
+    if (/^https?:\/\//.test(endpoint)) return endpoint;
+    const path = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+    if (base.endsWith(path)) return base;
+    return base + path;
+  }
+  if (!base) throw new Error('no base URL configured for this provider (BYOK credentials missing)');
   if (/\/chat\/completions$/.test(base)) return base;
   if (/\/responses$/.test(base)) return base;
   return base + '/chat/completions';
@@ -1722,7 +1728,7 @@ function buildMessages(parsed) {
 
 async function streamChat(opts, onEvent, signal, baseOverride) {
   const base = baseOverride || opts.baseUrl;
-  const url = providerUrl(base);
+  const url = providerUrl(base, opts.endpoint);
   const headers = {
     'content-type': 'application/json',
     // OpenCode Go requires a per-conversation session id and a real client UA.

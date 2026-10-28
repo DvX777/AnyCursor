@@ -225,6 +225,14 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
   });
 
   async function runTurn() {
+    const requestedModelId = parsed.modelId;
+    const resolvedRoute = registry ? registry.resolve(parsed.modelId) : { route: 'native' };
+    const byokModel = resolvedRoute.route === 'byok' ? resolvedRoute.model : null;
+    const byokProvider = byokModel && CONFIG ? CONFIG.providers[byokModel.provider] : null;
+    if (byokModel && byokModel.api !== 'openai-compatible') {
+      throw new Error(`provider adapter "${byokModel.api}" is not implemented yet`);
+    }
+    if (byokModel) parsed.modelId = byokModel.model;
     const messages = adapter.buildMessages(parsed);
     querySeq = Math.max(0, (parsed.nextInteractionQueryId || 1) - 1);
     let visible = '';
@@ -255,10 +263,20 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
 
     try {
       const MAX_ROUNDS = Number(process.env.CURSOR_PROXY_MAX_ROUNDS) || 24;
-      const creds = (!parsed.apiKey || !parsed.baseUrl) && parsed.isSubagent && lastParentCreds
+      const fallbackCreds = (!parsed.apiKey || !parsed.baseUrl) && parsed.isSubagent && lastParentCreds
         ? { apiKey: lastParentCreds.apiKey, baseUrl: lastParentCreds.baseUrl }
         : { apiKey: parsed.apiKey, baseUrl: parsed.baseUrl };
-      const usedFallbackCreds = creds.apiKey !== parsed.apiKey || creds.baseUrl !== parsed.baseUrl;
+      const creds = byokModel
+        ? {
+            apiKey: byokModel.apiKey || (byokProvider && byokProvider.apiKey) || '',
+            baseUrl: byokModel.baseUrl || (byokProvider && byokProvider.baseUrl) || '',
+          }
+        : fallbackCreds;
+      const endpoint = byokModel
+        ? (byokModel.endpoint || (byokProvider && byokProvider.endpoint) || '')
+        : '';
+      const usedFallbackCreds = !byokModel
+        && (fallbackCreds.apiKey !== parsed.apiKey || fallbackCreds.baseUrl !== parsed.baseUrl);
       for (let round = 0; round < MAX_ROUNDS; round++) {
         rounds = round + 1;
         const forceText = round === MAX_ROUNDS - 1;
@@ -266,6 +284,7 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
           modelId: parsed.modelId,
           apiKey: creds.apiKey,
           baseUrl: creds.baseUrl,
+          endpoint,
           conversationId: parsed.conversationId,
           runId: parsed.runId,
           messages,
@@ -461,6 +480,9 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
         promptProbe: {
           mode: parsed.mode,
           action: parsed.actionCase,
+          route: byokModel ? 'byok' : 'native',
+          provider: byokModel ? byokModel.provider : '',
+          requestedModel: requestedModelId,
           isSubagent: parsed.isSubagent,
           usedFallbackCreds,
           nextQueryId: parsed.nextInteractionQueryId,
@@ -776,7 +798,11 @@ const h1 = http.createServer((req, res) => {
         let merged = false;
         if (upRes.statusCode === 200 && CONFIG && CONFIG.models.length) {
           try {
-            const transformed = transformCatalog(original, upRes.headers, CONFIG.models);
+            const transformed = transformCatalog(
+              original,
+              upRes.headers,
+              CONFIG.models.filter((model) => model.api === 'openai-compatible'),
+            );
             out = transformed.body;
             merged = true;
             log({
