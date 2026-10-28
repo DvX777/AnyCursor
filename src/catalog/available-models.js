@@ -214,11 +214,18 @@ function appendModels(raw, models) {
   let out = Buffer.isBuffer(raw) ? raw : Buffer.from(raw || []);
   const usable = (models || []).filter((model) => model && model.enabled !== false);
   for (const model of usable) {
-    out = Buffer.concat([
-      out,
-      ld(2, encodeAvailableModel(model)),
-      ld(1, model.cursorId),
-    ]);
+    const entries = [model];
+    for (const alias of model.legacyIds || []) {
+      if (!alias || alias === model.cursorId) continue;
+      entries.push({ ...model, cursorId: alias, serverModelName: alias, legacyIds: [] });
+    }
+    for (const entry of entries) {
+      out = Buffer.concat([
+        out,
+        ld(2, encodeAvailableModel(entry)),
+        ld(1, entry.cursorId),
+      ]);
+    }
   }
   if (usable.some((model) => (model.effort && model.effort.tiers.length) || (model.contextOptions || []).length || model.fast)) {
     out = Buffer.concat([out, vi(11, 1)]); // use_model_parameters

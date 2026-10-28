@@ -163,26 +163,6 @@
         ],
         "additionalProperties": false,
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string",
-            "minLength": 1
-          },
-          "shortName": {
-            "type": "string"
-          },
-          "providerLabel": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "string"
-          },
-          "model": {
-            "type": "string",
-            "minLength": 1
-          },
           "api": {
             "enum": [
               "openai-compatible",
@@ -192,25 +172,61 @@
               "bedrock"
             ]
           },
-          "baseUrl": {
-            "type": "string"
-          },
           "apiKey": {
             "type": "string"
           },
-          "endpoint": {
+          "baseUrl": {
             "type": "string"
           },
-          "vendor": {
-            "type": "string"
+          "capabilities": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "tools": {
+                "type": "boolean"
+              },
+              "vision": {
+                "type": "boolean"
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "streaming": {
+                "type": "boolean"
+              },
+              "cache": {
+                "type": "boolean"
+              }
+            }
+          },
+          "contextOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "contextWindow": {
             "type": "integer",
             "minimum": 1
           },
-          "maxOutput": {
-            "type": "integer",
-            "minimum": 1
+          "displayName": {
+            "type": "string",
+            "minLength": 1
           },
           "effort": {
             "type": "object",
@@ -247,51 +263,36 @@
               }
             }
           },
-          "contextOptions": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "id",
-                "label"
-              ],
-              "properties": {
-                "id": {
-                  "type": "string"
-                },
-                "label": {
-                  "type": "string"
-                },
-                "value": {
-                  "type": "integer"
-                }
-              }
-            }
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "endpoint": {
+            "type": "string"
           },
           "fast": {
             "type": "boolean",
             "default": false
           },
-          "capabilities": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "tools": {
-                "type": "boolean"
-              },
-              "vision": {
-                "type": "boolean"
-              },
-              "reasoning": {
-                "type": "boolean"
-              },
-              "streaming": {
-                "type": "boolean"
-              },
-              "cache": {
-                "type": "boolean"
-              }
+          "id": {
+            "type": "string"
+          },
+          "legacyIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
+          },
+          "maxOutput": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "order": {
+            "type": "integer"
           },
           "pricing": {
             "type": "object",
@@ -315,12 +316,17 @@
               }
             }
           },
-          "order": {
-            "type": "integer"
+          "provider": {
+            "type": "string"
           },
-          "enabled": {
-            "type": "boolean",
-            "default": true
+          "providerLabel": {
+            "type": "string"
+          },
+          "shortName": {
+            "type": "string"
+          },
+          "vendor": {
+            "type": "string"
           }
         }
       }

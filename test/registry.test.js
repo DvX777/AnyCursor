@@ -30,6 +30,14 @@ test('routes a configured model to BYOK', () => {
   assert.equal(resolved.model.displayName, 'DeepSeek V4.1 Flash');
 });
 
+test('routes legacy model ids to the configured BYOK model', () => {
+  const r = registry();
+  const resolved = r.resolve('deepseek-v4.1-flash');
+  assert.equal(resolved.route, 'byok');
+  assert.equal(resolved.legacy, true);
+  assert.equal(resolved.model.cursorId, 'anycursor/opencode/deepseek-v4.1-flash');
+});
+
 test('routes unknown models to native passthrough by default', () => {
   const r = registry();
   assert.equal(r.resolve('claude-sonnet-5-5').route, 'native');

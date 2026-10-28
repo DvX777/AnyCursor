@@ -8,16 +8,23 @@
 function buildRegistry(config) {
   const byCursorId = new Map();
   const byId = new Map();
+  const byAlias = new Map();
 
   for (const model of config.models) {
     if (model.enabled === false) continue;
     byCursorId.set(model.cursorId, model);
     byId.set(model.id, model);
+    for (const alias of model.legacyIds || []) {
+      if (alias && !byAlias.has(alias)) byAlias.set(alias, model);
+    }
   }
 
   function resolve(modelId) {
     if (byCursorId.has(modelId)) {
       return { route: 'byok', model: byCursorId.get(modelId) };
+    }
+    if (byAlias.has(modelId)) {
+      return { route: 'byok', model: byAlias.get(modelId), legacy: true };
     }
     if (config.routing.nativePassthrough && config.routing.onUnknownModel === 'native') {
       return { route: 'native' };
@@ -33,6 +40,7 @@ function buildRegistry(config) {
     providers: config.providers,
     byCursorId,
     byId,
+    byAlias,
     resolve,
   };
 }

@@ -207,6 +207,9 @@ function normalizeModel(raw, providers, warnings, index) {
   return {
     id,
     cursorId: cursorModelId(providerName, id),
+    legacyIds: Array.isArray(raw.legacyIds)
+      ? raw.legacyIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [],
     displayName,
     shortName: String(raw.shortName || displayName),
     providerLabel: String(raw.providerLabel || providerName),
