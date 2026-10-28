@@ -210,14 +210,17 @@ function encodeAvailableModel(model) {
  * Append AnyCursor models and names to a raw AvailableModelsResponse.
  * Native bytes are preserved exactly; only new fields are appended.
  */
-function appendModels(raw, models) {
+function appendModels(raw, models, selectedIds = []) {
   let out = Buffer.isBuffer(raw) ? raw : Buffer.from(raw || []);
   const usable = (models || []).filter((model) => model && model.enabled !== false);
+  const selected = new Set(selectedIds || []);
   for (const model of usable) {
-    // Use the legacy id as the visible catalog id when one exists. Cursor may
-    // still have that id saved in modelConfig; exposing both ids would render
-    // duplicate rows in the picker.
-    const primaryId = (model.legacyIds || []).find(Boolean) || model.cursorId;
+    // Cursor may have either the namespaced id or a legacy id saved in
+    // modelConfig. Expose exactly the selected id when we recognise it, so the
+    // picker never points at a model that is missing from the catalog.
+    const ids = [model.cursorId, ...(model.legacyIds || [])];
+    const selectedId = ids.find((id) => selected.has(id));
+    const primaryId = selectedId || (model.legacyIds || []).find(Boolean) || model.cursorId;
     const entry = { ...model, cursorId: primaryId, serverModelName: primaryId, legacyIds: [] };
     out = Buffer.concat([
       out,

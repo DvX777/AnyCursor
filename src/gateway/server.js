@@ -23,6 +23,7 @@ const nodeCrypto = require('crypto');
 const { loadConfig } = require('../config/load');
 const { buildRegistry } = require('../catalog/registry');
 const { transformCatalog } = require('../catalog/response');
+const { selectedModelIds } = require('../cursor/state');
 const providers = require('../providers');
 
 const CONFIG_PATH = process.env.ANY_CURSOR_CONFIG
@@ -817,7 +818,12 @@ const h1 = http.createServer((req, res) => {
         let merged = false;
         if (upRes.statusCode === 200 && CONFIG && CONFIG.models.length) {
           try {
-            const transformed = transformCatalog(original, upRes.headers, CONFIG.models);
+            const transformed = transformCatalog(
+              original,
+              upRes.headers,
+              CONFIG.models,
+              selectedModelIds(),
+            );
             out = transformed.body;
             merged = true;
             log({

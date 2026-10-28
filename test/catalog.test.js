@@ -70,6 +70,16 @@ test('appends models without changing native response bytes', () => {
   assert.equal(num(fields, 11), 1);
 });
 
+test('exposes the selected model id when it is namespaced', () => {
+  const { config } = loadConfig(EXAMPLE, { env: ENV });
+  const model = config.models[0];
+  const merged = appendModels(Buffer.alloc(0), [model], [model.cursorId]);
+  const fields = readFields(merged);
+  const names = fields.filter((f) => f.no === 1).map((f) => f.value.toString('utf8'));
+  assert.deepEqual(names, [model.cursorId]);
+  assert.equal(fields.filter((f) => f.no === 2).length, 1);
+});
+
 test('merges gzip-compressed native responses', () => {
   const { config } = loadConfig(EXAMPLE, { env: ENV });
   const raw = Buffer.from([0x12, 0x03, 0x61, 0x62, 0x63]);
