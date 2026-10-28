@@ -189,7 +189,7 @@ function encodeAvailableModel(model) {
     if (maxContext) parts.push(vi(16, maxContext));
   }
   parts.push(ld(17, model.displayName));
-  parts.push(ld(18, model.model));
+  parts.push(ld(18, model.cursorId));
   parts.push(ld(24, model.shortName));
   parts.push(ld(39, model.providerLabel));
   if (model.vendor) parts.push(ld(41, model.vendor));

@@ -41,7 +41,7 @@ test('encodes model display name, real model id, effort and capabilities', () =>
 
   assert.equal(text(fields, 1), 'anycursor/opencode/deepseek-v4.1-flash');
   assert.equal(text(fields, 17), 'DeepSeek V4.1 Flash');
-  assert.equal(text(fields, 18), 'deepseek-v4.1-flash');
+  assert.equal(text(fields, 18), 'anycursor/opencode/deepseek-v4.1-flash');
   assert.equal(text(fields, 24), 'DeepSeek V4.1');
   assert.equal(text(fields, 39), 'OpenCode Go');
   assert.equal(num(fields, 5), 1);
