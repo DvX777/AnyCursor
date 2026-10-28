@@ -266,8 +266,11 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
         : { apiKey: parsed.apiKey, baseUrl: parsed.baseUrl };
       const creds = byokModel
         ? {
-            apiKey: byokModel.apiKey || (byokProvider && byokProvider.apiKey) || '',
-            baseUrl: byokModel.baseUrl || (byokProvider && (byokProvider.baseUrl || byokProvider.endpoint)) || '',
+            apiKey: byokModel.apiKey || (byokProvider && byokProvider.apiKey) || parsed.apiKey || '',
+            baseUrl: byokModel.baseUrl
+              || (byokProvider && (byokProvider.baseUrl || byokProvider.endpoint))
+              || parsed.baseUrl
+              || '',
           }
         : fallbackCreds;
       const endpoint = byokModel

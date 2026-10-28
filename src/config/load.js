@@ -39,7 +39,9 @@ function interpolate(value, env, warnings, keyPath = '') {
     return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_, name, fallback) => {
       if (env[name] !== undefined && env[name] !== '') return env[name];
       if (fallback !== undefined) return fallback;
-      warnings.push(`missing environment variable ${name}${keyPath ? ` at ${keyPath}` : ''}`);
+      if (!/\.(apiKey|accessKeyId|secretAccessKey|sessionToken)$/.test(keyPath)) {
+        warnings.push(`missing environment variable ${name}${keyPath ? ` at ${keyPath}` : ''}`);
+      }
       return '';
     });
   }

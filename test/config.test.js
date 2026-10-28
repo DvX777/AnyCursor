@@ -43,15 +43,16 @@ test('loads the example config and keeps display name separate from model id', (
 test('interpolates environment variables and reports missing ones', () => {
   const raw = {
     providers: {
-      p: { type: 'openai-compatible', baseUrl: 'https://example.test/v1', apiKey: '${TEST_KEY}' },
+      p: { type: 'openai-compatible', baseUrl: '${TEST_BASE}', apiKey: '${TEST_KEY}' },
     },
     models: [{ displayName: 'Test', provider: 'p', model: 'test-model' }],
   };
   const missing = normalizeConfig(raw, { env: {} });
   assert.equal(missing.config.providers.p.apiKey, '');
-  assert.ok(missing.warnings.some((w) => w.includes('TEST_KEY')));
+  assert.ok(missing.warnings.some((w) => w.includes('TEST_BASE')));
+  assert.ok(!missing.warnings.some((w) => w.includes('TEST_KEY')));
 
-  const present = normalizeConfig(raw, { env: { TEST_KEY: 'secret' } });
+  const present = normalizeConfig(raw, { env: { TEST_BASE: 'https://example.test', TEST_KEY: 'secret' } });
   assert.equal(present.config.providers.p.apiKey, 'secret');
 });
 

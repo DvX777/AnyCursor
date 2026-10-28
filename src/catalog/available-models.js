@@ -85,14 +85,14 @@ function enumParameter(id, name, values, tooltip) {
     ld(1, String(value.id)),
     ld(2, String(value.label || value.id)),
   ])));
-  const enumDefinition = ld(1, Buffer.concat(encodedValues)); // EnumParameterDefinition.values
-  const parameterType = ld(2, enumDefinition);                // ModelParameterType.enum_parameter
+  const enumDefinition = Buffer.concat(encodedValues); // EnumParameterDefinition.values[]
+  const parameterType = ld(2, enumDefinition);          // ModelParameterType.enum_parameter
   return Buffer.concat([
     ld(1, String(id)),
     ld(2, String(name)),
     tooltip ? ld(3, String(tooltip)) : Buffer.alloc(0),
     ld(4, parameterType),
-    vi(5, 1),                                                 // is_cycleable_by_hotkey
+    vi(5, 1),                                           // is_cycleable_by_hotkey
   ]);
 }
 
@@ -136,10 +136,23 @@ function parameterDefinitions(model) {
 }
 
 function parameterValue(id, value) {
-  return ld(1, Buffer.concat([
+  return Buffer.concat([
     ld(1, String(id)),
     ld(2, String(value)),
-  ]));
+  ]);
+}
+
+function tooltipData(model, label) {
+  const context = model.contextWindow ? `${Math.round(model.contextWindow / 1000)}K context window` : '';
+  const title = label || model.displayName;
+  const provider = model.providerLabel || 'AnyCursor';
+  const markdown = `**${title}**\n\nServed by ${provider}.${context ? `\n\n${context}` : ''}`;
+  return Buffer.concat([
+    ld(1, title),
+    ld(2, `Served by ${provider}.`),
+    context ? ld(5, context) : Buffer.alloc(0),
+    ld(7, markdown),
+  ]);
 }
 
 function modelVariant(model, tier) {
@@ -154,12 +167,14 @@ function modelVariant(model, tier) {
     ld(8, displayName),
     vi(5, isDefault ? 1 : 0),
     ld(9, displayName),
+    ld(6, tooltipData(model, displayName)),
   ]);
 }
 
 function encodeAvailableModel(model) {
   const parts = [];
   parts.push(ld(1, model.cursorId));
+  parts.push(vi(2, 1));     // default_on
   if (model.capabilities.tools) {
     parts.push(vi(5, 1));   // supports_agent
     parts.push(vi(22, 1));  // supports_plan_mode
@@ -167,7 +182,6 @@ function encodeAvailableModel(model) {
   if (model.capabilities.reasoning) parts.push(vi(9, 1));
   if (model.capabilities.vision) parts.push(vi(10, 1));
   parts.push(vi(19, 1));    // supports_non_max_mode
-  parts.push(vi(23, 1));    // is_user_added
   if (model.contextWindow) parts.push(vi(15, model.contextWindow));
   if (model.contextOptions && model.contextOptions.length) {
     const maxContext = model.contextOptions.reduce((max, option) => Math.max(max, option.value || 0), 0);
@@ -179,6 +193,7 @@ function encodeAvailableModel(model) {
   parts.push(ld(39, model.providerLabel));
   if (model.vendor) parts.push(ld(41, model.vendor));
   parts.push(vi(38, 0));    // named_model_section_index
+  parts.push(ld(8, tooltipData(model)));
 
   for (const definition of parameterDefinitions(model)) parts.push(ld(29, definition));
   if (model.effort) {

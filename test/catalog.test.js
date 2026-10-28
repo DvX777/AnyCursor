@@ -47,6 +47,7 @@ test('encodes model display name, real model id, effort and capabilities', () =>
   assert.equal(num(fields, 5), 1);
   assert.equal(num(fields, 9), 1);
   assert.equal(num(fields, 10), 1);
+  assert.equal(num(fields, 2), 1); // default_on, otherwise the picker filters it out
   assert.equal(num(fields, 15), 200000);
   assert.equal(num(fields, 16), 1000000);
   assert.equal(fields.filter((f) => f.no === 29).length, 2);
@@ -79,6 +80,26 @@ test('merges gzip-compressed native responses', () => {
   const fields = readFields(decoded);
   assert.equal(fields.filter((f) => f.no === 2).length, 3);
   assert.ok(fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'anycursor/opencode/deepseek-v4.1-flash'));
+});
+
+test('encodes parameter and variant values without extra nesting', () => {
+  const { config } = loadConfig(EXAMPLE, { env: ENV });
+  const fields = readFields(encodeAvailableModel(config.models[0]));
+
+  const reasoning = fields.filter((f) => f.no === 29)[0].value;
+  const reasoningFields = readFields(reasoning);
+  assert.equal(text(reasoningFields, 1), 'reasoning');
+  const parameterType = one(reasoningFields, 4);
+  const enumDefinition = one(readFields(parameterType), 2);
+  const firstValue = readFields(enumDefinition).find((f) => f.no === 1).value;
+  assert.equal(text(readFields(firstValue), 1), 'low');
+  assert.equal(text(readFields(firstValue), 2), 'Low');
+
+  const variant = fields.filter((f) => f.no === 30)[0].value;
+  const parameterValues = readFields(variant).filter((f) => f.no === 1);
+  assert.equal(parameterValues.length, 1);
+  assert.equal(text(readFields(parameterValues[0].value), 1), 'reasoning');
+  assert.equal(text(readFields(parameterValues[0].value), 2), 'low');
 });
 
 test('omits unsupported parameter definitions', () => {
