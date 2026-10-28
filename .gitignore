@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+logs/
+sessions/
+bodies/
+.env
+.env.*
+*.local.json
+config/anycursor.json
+config/secrets.json
+*.vsix
+.DS_Store
+Thumbs.db
