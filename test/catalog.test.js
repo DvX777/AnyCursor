@@ -63,10 +63,10 @@ test('appends models without changing native response bytes', () => {
 
   const fields = readFields(merged);
   const names = fields.filter((f) => f.no === 1).map((f) => f.value.toString('utf8'));
-  assert.ok(names.includes('anycursor/opencode/deepseek-v4.1-flash'));
   assert.ok(names.includes('deepseek-v4.1-flash'));
   assert.ok(names.includes('anycursor/anthropic/claude-sonnet-5.5'));
-  assert.equal(fields.filter((f) => f.no === 2).length, 4); // 1 native + 2 models + 1 legacy alias
+  assert.ok(!names.includes('anycursor/opencode/deepseek-v4.1-flash'));
+  assert.equal(fields.filter((f) => f.no === 2).length, 3); // 1 native + 2 models
   assert.equal(num(fields, 11), 1);
 });
 
@@ -80,9 +80,9 @@ test('merges gzip-compressed native responses', () => {
   assert.deepEqual(decoded.subarray(0, raw.length), raw);
 
   const fields = readFields(decoded);
-  assert.equal(fields.filter((f) => f.no === 2).length, 4);
-  assert.ok(fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'anycursor/opencode/deepseek-v4.1-flash'));
+  assert.equal(fields.filter((f) => f.no === 2).length, 3);
   assert.ok(fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'deepseek-v4.1-flash'));
+  assert.ok(!fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'anycursor/opencode/deepseek-v4.1-flash'));
 });
 
 test('encodes parameter and variant values without extra nesting', () => {

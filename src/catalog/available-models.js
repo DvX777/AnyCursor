@@ -214,18 +214,16 @@ function appendModels(raw, models) {
   let out = Buffer.isBuffer(raw) ? raw : Buffer.from(raw || []);
   const usable = (models || []).filter((model) => model && model.enabled !== false);
   for (const model of usable) {
-    const entries = [model];
-    for (const alias of model.legacyIds || []) {
-      if (!alias || alias === model.cursorId) continue;
-      entries.push({ ...model, cursorId: alias, serverModelName: alias, legacyIds: [] });
-    }
-    for (const entry of entries) {
-      out = Buffer.concat([
-        out,
-        ld(2, encodeAvailableModel(entry)),
-        ld(1, entry.cursorId),
-      ]);
-    }
+    // Use the legacy id as the visible catalog id when one exists. Cursor may
+    // still have that id saved in modelConfig; exposing both ids would render
+    // duplicate rows in the picker.
+    const primaryId = (model.legacyIds || []).find(Boolean) || model.cursorId;
+    const entry = { ...model, cursorId: primaryId, serverModelName: primaryId, legacyIds: [] };
+    out = Buffer.concat([
+      out,
+      ld(2, encodeAvailableModel(entry)),
+      ld(1, entry.cursorId),
+    ]);
   }
   if (usable.some((model) => (model.effort && model.effort.tiers.length) || (model.contextOptions || []).length || model.fast)) {
     out = Buffer.concat([out, vi(11, 1)]); // use_model_parameters
