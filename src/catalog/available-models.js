@@ -168,6 +168,11 @@ function encodeAvailableModel(model) {
   if (model.capabilities.vision) parts.push(vi(10, 1));
   parts.push(vi(19, 1));    // supports_non_max_mode
   parts.push(vi(23, 1));    // is_user_added
+  if (model.contextWindow) parts.push(vi(15, model.contextWindow));
+  if (model.contextOptions && model.contextOptions.length) {
+    const maxContext = model.contextOptions.reduce((max, option) => Math.max(max, option.value || 0), 0);
+    if (maxContext) parts.push(vi(16, maxContext));
+  }
   parts.push(ld(17, model.displayName));
   parts.push(ld(18, model.model));
   parts.push(ld(24, model.shortName));

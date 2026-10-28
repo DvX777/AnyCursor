@@ -47,6 +47,8 @@ test('encodes model display name, real model id, effort and capabilities', () =>
   assert.equal(num(fields, 5), 1);
   assert.equal(num(fields, 9), 1);
   assert.equal(num(fields, 10), 1);
+  assert.equal(num(fields, 15), 200000);
+  assert.equal(num(fields, 16), 1000000);
   assert.equal(fields.filter((f) => f.no === 29).length, 2);
   assert.equal(fields.filter((f) => f.no === 30).length, 3);
 });

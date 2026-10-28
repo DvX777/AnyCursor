@@ -54,6 +54,33 @@ Open `http://127.0.0.1:43110/` for the dashboard and `/health` for diagnostics.
 The example config uses environment references for keys. Missing keys are
 reported as warnings and can be filled in later.
 
+## Verify the native picker (development)
+
+This test uses port `43111` and never kills Cursor or touches shortcuts:
+
+```powershell
+cd C:\Project\AnyCursor
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-native-picker.ps1
+```
+
+If Cursor is already running, the script starts the gateway only and prints the
+command to launch Cursor with `--test-backend-url http://127.0.0.1:43111`.
+Fully quit Cursor first, then run the printed command.
+
+Check in Cursor:
+
+- AnyCursor models appear beside native Cursor models
+- display name is friendly, not the raw model ID
+- effort/context/fast controls match the model capabilities
+- selecting a native Cursor model still works
+- selecting an AnyCursor model routes to the configured provider
+
+Stop the test gateway with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-gateway.ps1 -Port 43111
+```
+
 ## Principles
 
 - No launcher and no visible app. Open Cursor normally.
