@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnyCursor</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d0f12; --panel:#15181d; --line:#262b33; --text:#e7e9ee; --muted:#8c93a1; --accent:#7aa2ff; --warn:#ffcc66; --bad:#ff6b6b; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, Segoe UI, sans-serif; }
+    header { padding:24px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+    header h1 { font-size:18px; margin:0; font-weight:650; }
+    header .tag { color:var(--muted); font-size:12px; }
+    main { max-width:1100px; margin:0 auto; padding:24px 28px 60px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:24px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+    .card .label { color:var(--muted); font-size:12px; margin-bottom:6px; }
+    .card .value { font-size:20px; font-weight:600; }
+    .ok { color:#7ee787; } .bad { color:var(--bad); } .warn { color:var(--warn); }
+    h2 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin:28px 0 10px; }
+    table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-size:12px; font-weight:500; }
+    tr:last-child td { border-bottom:0; }
+    code, .mono { font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:12px; }
+    .pill { display:inline-block; padding:2px 7px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; }
+    .muted { color:var(--muted); }
+    .warnings { margin:0; padding-left:18px; color:var(--warn); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AnyCursor</h1>
+    <span class="tag">local gateway</span>
+    <span id="status-pill" class="pill">loading…</span>
+  </header>
+  <main>
+    <div class="grid">
+      <div class="card"><div class="label">Gateway</div><div class="value mono" id="gateway">—</div></div>
+      <div class="card"><div class="label">Models</div><div class="value" id="model-count">—</div></div>
+      <div class="card"><div class="label">Native passthrough</div><div class="value" id="native">—</div></div>
+      <div class="card"><div class="label">Uptime</div><div class="value" id="uptime">—</div></div>
+    </div>
+
+    <h2>Configuration</h2>
+    <table>
+      <tr><th>Config file</th><td class="mono" id="config-path">—</td></tr>
+      <tr><th>Status</th><td id="config-status">—</td></tr>
+      <tr><th>Warnings</th><td><ul class="warnings" id="warnings"></ul></td></tr>
+    </table>
+
+    <h2>Models</h2>
+    <table>
+      <thead><tr><th>Display name</th><th>Cursor ID</th><th>Provider</th><th>Model</th><th>Effort</th><th>Context</th><th>Fast</th></tr></thead>
+      <tbody id="models"></tbody>
+    </table>
+
+    <h2>Providers</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Type</th><th>Endpoint</th><th>Key configured</th></tr></thead>
+      <tbody id="providers"></tbody>
+    </table>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmtUptime = (ms) => {
+      const s = Math.floor(ms / 1000);
+      if (s < 60) return `${s}s`;
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}m ${s % 60}s`;
+      return `${Math.floor(m / 60)}h ${m % 60}m`;
+    };
+    async function refresh() {
+      try {
+        const res = await fetch('/api/status', { cache: 'no-store' });
+        const s = await res.json();
+        $('status-pill').textContent = s.ok ? 'ready' : 'configuration error';
+        $('status-pill').className = 'pill ' + (s.ok ? 'ok' : 'bad');
+        $('gateway').textContent = `${s.gateway.host}:${s.gateway.port}`;
+        $('model-count').textContent = s.models.length;
+        $('native').textContent = s.routing?.nativePassthrough ? 'enabled' : 'disabled';
+        $('native').className = 'value ' + (s.routing?.nativePassthrough ? 'ok' : 'warn');
+        $('uptime').textContent = fmtUptime(s.uptimeMs || 0);
+        $('config-path').textContent = s.configPath;
+        $('config-status').textContent = s.configLoaded ? 'loaded' : (s.configError || 'not loaded');
+        $('config-status').className = s.configLoaded ? 'ok' : 'bad';
+        $('warnings').innerHTML = (s.warnings || []).map((w) => `<li>${esc(w)}</li>`).join('') || '<li class="muted">none</li>';
+        $('models').innerHTML = (s.models || []).map((m) => `<tr>
+          <td><strong>${esc(m.displayName)}</strong></td>
+          <td class="mono">${esc(m.cursorId)}</td>
+          <td>${esc(m.providerLabel)}</td>
+          <td class="mono">${esc(m.model)}</td>
+          <td>${m.effort ? esc(m.effort.default) : '<span class="muted">—</span>'}</td>
+          <td>${m.contextOptions?.length ? esc(m.contextOptions.map((c) => c.label).join(', ')) : '<span class="muted">—</span>'}</td>
+          <td>${m.fast ? 'yes' : 'no'}</td>
+        </tr>`).join('') || '<tr><td colspan="7" class="muted">No AnyCursor models configured.</td></tr>';
+        $('providers').innerHTML = Object.entries(s.providers || {}).map(([name, p]) => `<tr>
+          <td>${esc(name)}</td><td>${esc(p.type)}</td><td class="mono">${esc(p.baseUrl || '—')}</td>
+          <td>${p.configured ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'}</td>
+        </tr>`).join('') || '<tr><td colspan="4" class="muted">No providers configured.</td></tr>';
+      } catch (e) {
+        $('status-pill').textContent = 'offline';
+        $('status-pill').className = 'pill bad';
+        $('config-status').textContent = String(e);
+      }
+    }
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

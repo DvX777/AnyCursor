@@ -8,6 +8,8 @@
     "node": ">=22.5"
   },
   "scripts": {
+    "start": "node src/gateway/index.js",
+    "gateway": "node src/gateway/index.js",
     "test": "node --test",
     "check": "node --test"
   }

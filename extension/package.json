@@ -1,0 +1,38 @@
+{
+  "name": "anycursor",
+  "displayName": "AnyCursor",
+  "description": "Use Cursor's native models and your own BYOK models side by side.",
+  "version": "0.1.0",
+  "publisher": "anycursor",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "extensionKind": ["workspace"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "anycursor.openSettings",
+        "title": "AnyCursor: Open Settings"
+      },
+      {
+        "command": "anycursor.doctor",
+        "title": "AnyCursor: Doctor"
+      },
+      {
+        "command": "anycursor.startGateway",
+        "title": "AnyCursor: Start Gateway"
+      },
+      {
+        "command": "anycursor.repairShortcuts",
+        "title": "AnyCursor: Repair Cursor Shortcuts"
+      }
+    ]
+  },
+  "scripts": {
+    "package": "vsce package"
+  }
+}

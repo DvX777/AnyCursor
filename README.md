@@ -13,9 +13,36 @@ letting you use:
 
 Early development. Windows-only for the first release.
 
-The current working prototype lives outside this repository while the
-configuration, catalog and gateway are extracted. This repository is the new
-home for the production implementation.
+Working now:
+
+- config loader with provider/model validation and namespaced model IDs
+- model registry with native/BYOK routing
+- Cursor local history reader (`composerHeaders`, `cursorDiskKV`, transcripts)
+- gateway skeleton with h1/h2c forwarding, BYOK live-turn handling, and raw
+  native passthrough routing
+- localhost health endpoint and web dashboard
+- Cursor extension skeleton that starts/supervises the gateway on activation
+
+Next:
+
+- merge AnyCursor models into `AvailableModels`
+- native model picker display names/effort/context/fast parameters
+- full provider adapters
+- shortcut repair and pre-warmed gateway service
+- settings UI editing
+
+## Run the gateway
+
+```powershell
+cd C:\Project\AnyCursor
+Copy-Item config\anycursor.example.json config\anycursor.json
+npm start
+```
+
+Open `http://127.0.0.1:43110/` for the dashboard and `/health` for diagnostics.
+
+The example config uses environment references for keys. Missing keys are
+reported as warnings and can be filled in later.
 
 ## Principles
 

@@ -13,3 +13,5 @@ config/secrets.json
 *.vsix
 .DS_Store
 Thumbs.db
+data/
+*.bak
