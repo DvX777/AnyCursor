@@ -96,21 +96,51 @@ if (-not $SkipExtension -and (Test-Path $vsix)) {
 $gateway = Find-Gateway
 $gatewayRoot = Split-Path (Split-Path $gateway -Parent) -Parent
 
+function Install-StartupFallback {
+  param([string]$Node, [string]$Gateway, [string]$ConfigFile)
+  $startup = [Environment]::GetFolderPath('Startup')
+  New-Item -ItemType Directory -Force -Path $startup | Out-Null
+  $vbs = Join-Path $startup 'AnyCursor Gateway.vbs'
+  $command = "`"$Node`" `"$Gateway`" --config `"$ConfigFile`""
+  $escaped = $command.Replace('"', '""')
+  $content = 'CreateObject("WScript.Shell").Run "' + $escaped + '", 0, False' + "`r`n"
+  Set-Content -Path $vbs -Value $content -Encoding ASCII
+  Write-Host "Created hidden startup entry: $vbs" -ForegroundColor Green
+  return $vbs
+}
+
 if (-not $SkipTask) {
-  Write-Host "Registering the login task '$TaskName'..." -ForegroundColor Cyan
-  $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-  $action = New-ScheduledTaskAction -Execute $node `
-    -Argument "`"$gateway`" --config `"$Config`"" -WorkingDirectory $gatewayRoot
-  $trigger = New-ScheduledTaskTrigger -AtLogOn
-  $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
-  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-    -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
-    -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
-  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
-    -Principal $principal -Settings $settings -Force `
-    -Description "Pre-warms the AnyCursor gateway at login." | Out-Null
-  Start-ScheduledTask -TaskName $TaskName
-  Write-Host "Task registered and started." -ForegroundColor Green
+  $taskOk = $false
+  try {
+    Write-Host "Registering the login task '$TaskName'..." -ForegroundColor Cyan
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $action = New-ScheduledTaskAction -Execute $node `
+      -Argument "`"$gateway`" --config `"$Config`"" -WorkingDirectory $gatewayRoot
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+      -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
+      -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+      -Principal $principal -Settings $settings -Force `
+      -Description "Pre-warms the AnyCursor gateway at login." | Out-Null
+    Start-ScheduledTask -TaskName $TaskName
+    $taskOk = $true
+    $startupEntry = Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.vbs'
+    if (Test-Path $startupEntry) { Remove-Item $startupEntry -Force }
+    Write-Host "Task registered and started." -ForegroundColor Green
+  } catch {
+    Write-Warning "Scheduled task registration is not permitted ($($_.Exception.Message))."
+    Write-Host "Falling back to a hidden Startup-folder entry." -ForegroundColor Yellow
+  }
+
+  if (-not $taskOk) {
+    Install-StartupFallback -Node $node -Gateway $gateway -ConfigFile $Config | Out-Null
+    Start-Process -FilePath $node `
+      -ArgumentList @("`"$gateway`"", '--config', "`"$Config`"") `
+      -WorkingDirectory $gatewayRoot -WindowStyle Hidden
+    Write-Host "Gateway started now and will start hidden at every login." -ForegroundColor Green
+  }
 }
 
 if (-not $SkipShortcuts) {

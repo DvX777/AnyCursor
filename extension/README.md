@@ -2,20 +2,29 @@
 
 Cursor extension that supervises the local AnyCursor gateway.
 
-Current scope:
+## What it does
 
-- activates on Cursor startup
+- activates when Cursor starts
 - reads `%LOCALAPPDATA%\AnyCursor\config.json` (or `ANY_CURSOR_CONFIG`)
 - checks the gateway health endpoint
-- starts the gateway if it is not running
-- exposes commands:
-  - `AnyCursor: Open Settings`
-  - `AnyCursor: Doctor`
-  - `AnyCursor: Start Gateway`
-  - `AnyCursor: Repair Cursor Shortcuts` (placeholder)
+- starts the gateway when it is not running and restarts it after a crash
+- runs the packaged gateway from `vendor/anycursor`, so no source checkout is
+  needed after installation
 
-The extension does not modify Cursor state. Shortcut patching and the full
-settings UI are the next lifecycle steps.
+## Commands
+
+- `AnyCursor: Open Settings` — opens the local web settings UI
+- `AnyCursor: Open Configuration File` — opens the JSON config in Cursor
+- `AnyCursor: Doctor` — config, gateway path, health, models and warnings
+- `AnyCursor: Start Gateway` — force a start attempt
+- `AnyCursor: Repair Cursor Shortcuts` — updates Desktop/Start Menu/Taskbar
+  shortcuts with `--test-backend-url` and keeps `*.lnk.anycursor.bak` backups
+
+## Configuration and dashboard
+
+The gateway serves the dashboard and settings UI at
+`http://127.0.0.1:<gateway.port>/`. Host, port, upstream and data directory are
+read from the config file; model and provider changes apply without restart.
 
 ## Development
 
@@ -26,4 +35,9 @@ per-user config does not exist. Start the gateway manually:
 npm start
 ```
 
-Then sideload this folder as an unpacked extension, or package it with `vsce`.
+Then sideload this folder as an unpacked extension, or package it from the
+repository root:
+
+```powershell
+npm run package:extension
+```

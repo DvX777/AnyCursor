@@ -14,6 +14,19 @@ if ($task) {
   Write-Host "Login task '$TaskName' was not registered." -ForegroundColor Yellow
 }
 
+$startupEntry = Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.vbs'
+if (Test-Path $startupEntry) {
+  Remove-Item $startupEntry -Force
+  Write-Host "Removed startup entry '$startupEntry'." -ForegroundColor Green
+}
+
+$gateways = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -match 'gateway[\\/]index\.js' -and $_.CommandLine -match 'anycursor' }
+foreach ($gateway in $gateways) {
+  Stop-Process -Id $gateway.ProcessId -Force -ErrorAction SilentlyContinue
+  Write-Host "Stopped gateway process $($gateway.ProcessId)." -ForegroundColor Green
+}
+
 $cliCandidates = @(
   (Join-Path $env:LOCALAPPDATA "Programs\cursor\resources\app\bin\cursor.cmd"),
   (Join-Path $env:LOCALAPPDATA "Programs\cursor\resources\app\bin\cursor.exe")
