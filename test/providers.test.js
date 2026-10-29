@@ -173,6 +173,60 @@ test('bedrock converts messages/tools and signs requests', () => {
   assert.equal(headers['x-amz-date'], '20260101T000000Z');
 });
 
+test('bedrock parses ConverseStream event frames', () => {
+  function header(name, value) {
+    const nameBuf = Buffer.from(name);
+    const valueBuf = Buffer.from(value);
+    const out = Buffer.alloc(1 + nameBuf.length + 1 + 2 + valueBuf.length);
+    let i = 0;
+    out[i++] = nameBuf.length;
+    nameBuf.copy(out, i); i += nameBuf.length;
+    out[i++] = 7; // string
+    out.writeUInt16BE(valueBuf.length, i); i += 2;
+    valueBuf.copy(out, i);
+    return out;
+  }
+  function message(eventType, payload) {
+    const headers = Buffer.concat([
+      header(':event-type', eventType),
+      header(':message-type', 'event'),
+    ]);
+    const body = Buffer.from(JSON.stringify(payload));
+    const total = 12 + headers.length + body.length + 4;
+    const out = Buffer.alloc(total);
+    out.writeUInt32BE(total, 0);
+    out.writeUInt32BE(headers.length, 4);
+    headers.copy(out, 12);
+    body.copy(out, 12 + headers.length);
+    return out;
+  }
+
+  const frames = Buffer.concat([
+    message('contentBlockDelta', { contentBlockIndex: 0, delta: { text: 'Hello' } }),
+    message('contentBlockDelta', { contentBlockIndex: 0, delta: { reasoningContent: { text: 'think' } } }),
+    message('contentBlockStart', { contentBlockIndex: 1, start: { toolUse: { toolUseId: 'call_1', name: 'Read' } } }),
+    message('contentBlockDelta', { contentBlockIndex: 1, delta: { toolUse: { input: '{"path":"x"}' } } }),
+    message('contentBlockStop', { contentBlockIndex: 1 }),
+    message('messageStop', { stopReason: 'tool_use' }),
+    message('metadata', { usage: { inputTokens: 3, outputTokens: 4 } }),
+  ]);
+
+  const parsed = bedrock.parseEventStream(frames);
+  assert.equal(parsed.events.length, 7);
+  const state = { text: '', thinking: '', toolCalls: [], blocks: {}, usage: null, stopReason: '' };
+  const events = [];
+  for (const event of parsed.events) {
+    bedrock.processConverseStreamEvent(event, state, (e) => events.push(e));
+  }
+  assert.equal(state.text, 'Hello');
+  assert.equal(state.thinking, 'think');
+  assert.equal(state.toolCalls[0].name, 'Read');
+  assert.deepEqual(JSON.parse(state.toolCalls[0].args), { path: 'x' });
+  assert.equal(state.stopReason, 'tool_use');
+  assert.equal(state.usage.outputTokens, 4);
+  assert.ok(events.some((e) => e.kind === 'thinking' && e.text === 'think'));
+});
+
 test('provider registry maps all supported apis', () => {
   for (const api of ['openai-compatible', 'anthropic', 'google', 'azure-openai', 'bedrock']) {
     assert.equal(typeof providers.getAdapter(api).streamChat, 'function');

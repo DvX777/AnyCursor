@@ -87,6 +87,10 @@ function prepareInferenceModel(model) {
     baseUrl: model.baseUrl || (provider && (provider.baseUrl || provider.endpoint)) || '',
     endpoint: model.endpoint || (provider && provider.endpoint) || '',
     headers: (provider && provider.headers) || {},
+    region: (provider && provider.region) || '',
+    accessKeyId: (provider && provider.accessKeyId) || '',
+    secretAccessKey: (provider && provider.secretAccessKey) || '',
+    sessionToken: (provider && provider.sessionToken) || '',
   };
 }
 

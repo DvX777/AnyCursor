@@ -588,6 +588,10 @@ function handleRunInference(stream, hdrs, id, reqPath, options) {
         context: parameters.context,
         fast: parameters.fast === 'true',
         headers: modelOptions.headers,
+        region: modelOptions.region,
+        accessKeyId: modelOptions.accessKeyId,
+        secretAccessKey: modelOptions.secretAccessKey,
+        sessionToken: modelOptions.sessionToken,
       }, async (event) => {
         if (event.kind === 'text' && event.text) {
           textChars += event.text.length;
