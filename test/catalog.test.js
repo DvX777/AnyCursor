@@ -122,9 +122,11 @@ test('encodes parameter and variant values without extra nesting', () => {
 
   const variant = fields.filter((f) => f.no === 30)[0].value;
   const parameterValues = readFields(variant).filter((f) => f.no === 1);
-  assert.equal(parameterValues.length, 1);
+  assert.equal(parameterValues.length, 2);
   assert.equal(text(readFields(parameterValues[0].value), 1), 'context');
   assert.equal(text(readFields(parameterValues[0].value), 2), '272k');
+  assert.equal(text(readFields(parameterValues[1].value), 1), 'reasoning_effort');
+  assert.equal(text(readFields(parameterValues[1].value), 2), 'low');
 });
 
 test('omits unsupported parameter definitions', () => {

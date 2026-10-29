@@ -182,7 +182,7 @@ function modelVariant(model, effort, context, fast) {
   ].filter(Boolean).join(',')}]`;
 
   return Buffer.concat([
-    ld(1, Buffer.concat(values)),
+    Buffer.concat(values.map((value) => ld(1, value))),
     ld(2, displayName),
     ld(7, model.providerLabel || ''),
     ld(8, displayName),
