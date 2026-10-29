@@ -51,6 +51,7 @@ test('encodes model display name, real model id, effort and capabilities', () =>
   assert.equal(num(fields, 23), 1); // is_user_added, prevents pruning the selected native BYOK entry
   assert.equal(num(fields, 21), 1); // recommended for the Agents Window / background composer
   assert.equal(num(fields, 25), 1); // supports sandboxing
+  assert.equal(num(fields, 14), 1); // supports max mode (background composer defaults to max)
   assert.equal(num(fields, 15), 200000);
   assert.equal(num(fields, 16), 1000000);
   assert.equal(fields.filter((f) => f.no === 29).length, 2);
