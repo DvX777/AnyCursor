@@ -199,7 +199,10 @@ function encodeAvailableModel(model) {
   if (model.capabilities.tools) {
     parts.push(vi(5, 1));   // supports_agent
     parts.push(vi(22, 1));  // supports_plan_mode
+    parts.push(vi(25, 1));  // supports_sandboxing
   }
+  parts.push(vi(21, 1));    // is_recommended_for_background_composer
+  parts.push(vi(28, 0));    // background_composer_sort_order
   if (model.capabilities.reasoning) parts.push(vi(9, 1));
   if (model.capabilities.vision) parts.push(vi(10, 1));
   parts.push(vi(19, 1));    // supports_non_max_mode
