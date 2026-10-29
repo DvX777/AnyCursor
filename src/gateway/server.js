@@ -27,6 +27,7 @@ const { selectedModelIds } = require('../cursor/state');
 const providers = require('../providers');
 const { cachedOpencodeCredential } = require('../providers/opencode-credential');
 const history = require('../history/import');
+const inference = require('./inference');
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -75,6 +76,18 @@ function providerApiKey(provider) {
     if (credential && credential.key) return credential.key;
   }
   return '';
+}
+
+function prepareInferenceModel(model) {
+  const config = currentConfig();
+  const provider = config && config.providers ? config.providers[model.provider] : null;
+  if (!provider && !model.baseUrl) return null;
+  return {
+    apiKey: model.apiKey || providerApiKey(provider) || '',
+    baseUrl: model.baseUrl || (provider && (provider.baseUrl || provider.endpoint)) || '',
+    endpoint: model.endpoint || (provider && provider.endpoint) || '',
+    headers: (provider && provider.headers) || {},
+  };
 }
 
 // Apply edits made outside the dashboard (editor, git, installer scripts).
@@ -1211,6 +1224,16 @@ function routeAgentRun(stream, hdrs, id, reqPath) {
 h2.on('stream', (stream, hdrs) => {
   const id = ++seq;
   const reqPath = hdrs[':path'] || '/';
+
+  if (reqPath === '/aiserver.v1.InferenceService/RunInference' && registry) {
+    inference.handleRunInference(stream, hdrs, id, reqPath, {
+      forward: (prefix) => forwardH2(stream, hdrs, id, reqPath, prefix),
+      resolve: (modelId) => registry.resolve(modelId),
+      prepare: (model) => prepareInferenceModel(model),
+      log,
+    });
+    return;
+  }
 
   if (reqPath.startsWith('/agent.v1.AgentService/Run') && registry && !FAKE_TURN) {
     routeAgentRun(stream, hdrs, id, reqPath);
