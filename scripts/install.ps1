@@ -104,13 +104,13 @@ function Install-StartupFallback {
   New-Item -ItemType Directory -Force -Path $dataDir, $startup | Out-Null
 
   $link = Join-Path $startup 'AnyCursor Gateway.lnk'
-  $launcher = Join-Path $dataDir 'AnyCursor.exe'
+  $launcher = Join-Path $dataDir 'AnyCursor Gateway.exe'
   $launcherOk = $false
   try {
     & (Join-Path $PSScriptRoot 'build-launcher.ps1') -Node $Node -OutDir $dataDir | Out-Null
     $launcherOk = Test-Path $launcher
   } catch {
-    Write-Warning "Could not build AnyCursor.exe ($($_.Exception.Message)); using the script launcher."
+    Write-Warning "Could not build AnyCursor Gateway.exe ($($_.Exception.Message)); using the script launcher."
   }
 
   $shell = New-Object -ComObject WScript.Shell
@@ -124,8 +124,10 @@ function Install-StartupFallback {
     $shortcut.Arguments = ''
     $shortcut.IconLocation = "$launcher,0"
     $shortcut.Save()
-    $hiddenVbs = Join-Path $dataDir 'gateway-start.vbs'
-    if (Test-Path $hiddenVbs) { Remove-Item $hiddenVbs -Force }
+    foreach ($old in @('gateway-start.vbs', 'AnyCursor.exe')) {
+      $path = Join-Path $dataDir $old
+      if (Test-Path $path) { Remove-Item $path -Force }
+    }
   } else {
     $vbs = Join-Path $dataDir 'gateway-start.vbs'
     $command = "`"$Node`" `"$Gateway`" --config `"$ConfigFile`""
@@ -162,7 +164,7 @@ function Remove-StartupFallback {
     if (Test-Path $path) { Remove-Item $path -Force }
   }
   $dataDir = Join-Path $env:LOCALAPPDATA 'AnyCursor'
-  foreach ($name in @('gateway-start.vbs', 'AnyCursor.exe', 'AnyCursorLauncher.cs')) {
+  foreach ($name in @('gateway-start.vbs', 'AnyCursor.exe', 'AnyCursor Gateway.exe', 'AnyCursorLauncher.cs')) {
     $path = Join-Path $dataDir $name
     if (Test-Path $path) { Remove-Item $path -Force }
   }

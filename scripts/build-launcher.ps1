@@ -24,7 +24,15 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
+
+[assembly: AssemblyTitle("AnyCursor Gateway")]
+[assembly: AssemblyDescription("Hidden AnyCursor gateway prewarm helper. Users launch Cursor, not this file.")]
+[assembly: AssemblyProduct("AnyCursor")]
+[assembly: AssemblyCompany("AnyCursor")]
+[assembly: AssemblyVersion("0.1.0.0")]
+[assembly: AssemblyFileVersion("0.1.0.0")]
 
 class AnyCursorLauncher
 {
@@ -172,7 +180,7 @@ class AnyCursorLauncher
 
 $source = $source.Replace('__NODE__', $Node.Replace('"', '""'))
 $sourceFile = Join-Path $OutDir 'AnyCursorLauncher.cs'
-$exe = Join-Path $OutDir 'AnyCursor.exe'
+$exe = Join-Path $OutDir 'AnyCursor Gateway.exe'
 Set-Content -Path $sourceFile -Value $source -Encoding UTF8
 
 & $csc /nologo /target:winexe /optimize+ "/out:$exe" $sourceFile

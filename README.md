@@ -94,18 +94,25 @@ The installer:
 1. creates `%LOCALAPPDATA%\AnyCursor\config.json` if it does not exist
 2. stages the gateway inside the extension and packages a VSIX
 3. installs the extension with the Cursor CLI
-4. registers a `AnyCursor Gateway` login task when permitted, or builds
-   `AnyCursor.exe` and adds an `AnyCursor Gateway` Startup shortcut when
-   Windows policy blocks tasks
+4. registers a `AnyCursor Gateway` login task when permitted, or builds a
+   hidden `AnyCursor Gateway.exe` helper and adds an `AnyCursor Gateway`
+   Startup shortcut when Windows policy blocks tasks
 5. updates Desktop, Start Menu and Taskbar Cursor shortcuts to add
    `--test-backend-url http://127.0.0.1:<port>`
 6. waits for the gateway health endpoint
 
 Shortcut backups are written next to each shortcut as `*.lnk.anycursor.bak`.
-When task registration is denied, the installer builds a small
-`%LOCALAPPDATA%\AnyCursor\AnyCursor.exe` launcher, adds an `AnyCursor Gateway`
-Startup shortcut, and uses it to pre-warm the gateway hidden. Task Manager shows
-`AnyCursor.exe`, not `wscript.exe`. Both are removed by the uninstaller.
+When task registration is denied, the installer builds a hidden
+`%LOCALAPPDATA%\AnyCursor\AnyCursor Gateway.exe` helper, adds an `AnyCursor
+Gateway` Startup shortcut, and uses it to pre-warm the gateway hidden. Task
+Manager shows `AnyCursor Gateway.exe`, not `wscript.exe`. Both are removed by
+the uninstaller.
+
+`AnyCursor Gateway.exe` is not an app users open. It has no window, only
+ensures the gateway is running, and exits. If it is missing or disabled, the
+Cursor extension starts the gateway when Cursor starts. **Users always open
+Cursor normally.**
+
 Options: `-SkipPackage`, `-SkipExtension`, `-SkipTask`, `-SkipShortcuts`,
 `-RequestAdmin`, `-Port`, `-Config`, `-TaskName`.
 
@@ -139,8 +146,9 @@ node src\gateway\index.js --config C:\path\to\anycursor.json
 
 This is Cursor's own internal switch for pointing the desktop app at another
 backend; Cursor exposes no public alternative. It is not a leftover test value.
-AnyCursor keeps shortcuts pointed at `Cursor.exe` with that flag instead of
-shipping a custom launcher, so Windows still trusts the shortcut target.
+AnyCursor keeps Cursor shortcuts pointed at `Cursor.exe` with that flag instead
+of routing the user through a separate app. The only extra executable is the
+hidden gateway prewarm helper described above; users never launch it.
 
 ## Verify the native picker (development)
 
