@@ -238,6 +238,20 @@ provider key still comes from your config. If you later enable Cursor's own
 Claude key, use a different prefix (for example `gemini-anycursor-...`) or
 disable that Cursor key toggle.
 
+### Secret storage
+
+On Windows, API keys and AWS secrets are stored in **Windows Credential
+Manager** under `AnyCursor/...`. The config file keeps only references such as:
+
+```json
+"apiKeyRef": "AnyCursor/provider/opencode/apiKey"
+```
+
+Existing plaintext keys are moved into Credential Manager the next time the
+config is saved. Environment references like `${OPENCODE_API_KEY}` remain
+supported and are not copied into the credential store. Clearing a key in the
+dashboard deletes its Credential Manager entry.
+
 ## Move chats between workspaces
 
 Cursor stores chats globally but lists them per workspace. The dashboard's

@@ -103,6 +103,9 @@
           "apiKey": {
             "type": "string"
           },
+          "apiKeyRef": {
+            "type": "string"
+          },
           "apiVersion": {
             "type": "string"
           },
@@ -140,7 +143,13 @@
           "secretAccessKey": {
             "type": "string"
           },
+          "secretAccessKeyRef": {
+            "type": "string"
+          },
           "sessionToken": {
+            "type": "string"
+          },
+          "sessionTokenRef": {
             "type": "string"
           },
           "type": {
@@ -180,6 +189,9 @@
             ]
           },
           "apiKey": {
+            "type": "string"
+          },
+          "apiKeyRef": {
             "type": "string"
           },
           "baseUrl": {

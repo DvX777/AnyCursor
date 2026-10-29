@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { ConfigService, redactRaw, mergeSecrets } = require('../src/config/service');
+const { MemoryStore } = require('../src/config/secrets');
 
 const BASE = {
   gateway: { host: '127.0.0.1', port: 43110 },
@@ -80,7 +81,8 @@ test('clear flags remove stored secrets', () => {
 
 test('saves, validates, backs up, and reloads a config', () => {
   const { dir, file } = writeTempConfig();
-  const service = new ConfigService(file);
+  const store = new MemoryStore();
+  const service = new ConfigService(file, { secrets: store });
   assert.equal(service.config.models.length, 1);
 
   const redacted = service.redacted();
@@ -91,11 +93,37 @@ test('saves, validates, backs up, and reloads a config', () => {
 
   const written = JSON.parse(fs.readFileSync(file, 'utf8'));
   assert.equal(written.models[0].displayName, 'Model A Renamed');
-  assert.equal(written.providers.local.apiKey, 'sk-secret-value');
-  assert.equal(written.models[0].apiKey, 'model-secret');
+  assert.equal(written.providers.local.apiKey, undefined);
+  assert.equal(written.models[0].apiKey, undefined);
+  assert.ok(written.providers.local.apiKeyRef);
+  assert.ok(written.models[0].apiKeyRef);
+  assert.equal(store.get(written.providers.local.apiKeyRef), 'sk-secret-value');
+  assert.equal(store.get(written.providers.aws.secretAccessKeyRef), 'aws-secret');
 
-  const reloaded = new ConfigService(file);
+  const reloaded = new ConfigService(file, { secrets: store });
   assert.equal(reloaded.config.models[0].displayName, 'Model A Renamed');
+  assert.equal(reloaded.config.providers.local.apiKey, 'sk-secret-value');
+  assert.equal(reloaded.config.models[0].apiKey, 'model-secret');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('clear flags remove stored credentials and references', () => {
+  const { dir, file } = writeTempConfig();
+  const store = new MemoryStore();
+  const service = new ConfigService(file, { secrets: store });
+  service.save(service.redacted().config);
+
+  const edited = service.redacted().config;
+  edited.providers.local.clearApiKey = true;
+  edited.models[0].clearApiKey = true;
+  service.save(edited);
+
+  const written = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(written.providers.local.apiKeyRef, undefined);
+  assert.equal(written.models[0].apiKeyRef, undefined);
+  assert.equal(service.config.providers.local.apiKey, '');
+  assert.equal(service.config.models[0].apiKey, '');
 
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -103,7 +131,7 @@ test('saves, validates, backs up, and reloads a config', () => {
 test('rejects an invalid config without overwriting the file', () => {
   const { dir, file } = writeTempConfig();
   const before = fs.readFileSync(file, 'utf8');
-  const service = new ConfigService(file);
+  const service = new ConfigService(file, { secrets: new MemoryStore() });
 
   assert.throws(() => service.save({ providers: {}, models: [] }), /provider/i);
   assert.equal(fs.readFileSync(file, 'utf8'), before);
@@ -116,7 +144,7 @@ test('loads a config saved with a UTF-8 BOM', () => {
   const file = path.join(dir, 'anycursor.json');
   fs.writeFileSync(file, '\uFEFF' + JSON.stringify(BASE, null, 2));
 
-  const service = new ConfigService(file);
+  const service = new ConfigService(file, { secrets: new MemoryStore() });
   assert.equal(service.error, '');
   assert.equal(service.config.models[0].displayName, 'Model A');
 
@@ -128,7 +156,7 @@ test('reports a load error without throwing', () => {
   const file = path.join(dir, 'anycursor.json');
   fs.writeFileSync(file, '{ not json');
 
-  const service = new ConfigService(file);
+  const service = new ConfigService(file, { secrets: new MemoryStore() });
   assert.equal(service.config, null);
   assert.match(service.error, /JSON/i);
 
