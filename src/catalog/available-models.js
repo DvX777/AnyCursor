@@ -243,18 +243,22 @@ function appendModels(raw, models, selectedIds = []) {
   const usable = (models || []).filter((model) => model && model.enabled !== false);
   const selected = new Set(selectedIds || []);
   for (const model of usable) {
-    // Cursor may have either the namespaced id or a legacy id saved in
-    // modelConfig. Expose exactly the selected id when we recognise it, so the
-    // picker never points at a model that is missing from the catalog.
+    // Cursor may have the namespaced id and/or a legacy id saved in different
+    // old conversations. Expose every selected id for this model; otherwise a
+    // chat using the missing id falls back to Auto.
     const ids = [model.cursorId, ...(model.legacyIds || [])];
-    const selectedId = ids.find((id) => selected.has(id));
-    const primaryId = selectedId || (model.legacyIds || []).find(Boolean) || model.cursorId;
-    const entry = { ...model, cursorId: primaryId, serverModelName: primaryId, legacyIds: [] };
-    out = Buffer.concat([
-      out,
-      ld(2, encodeAvailableModel(entry)),
-      ld(1, entry.cursorId),
-    ]);
+    const selectedForModel = ids.filter((id) => selected.has(id));
+    const visibleIds = selectedForModel.length
+      ? selectedForModel
+      : [(model.legacyIds || []).find(Boolean) || model.cursorId];
+    for (const primaryId of visibleIds) {
+      const entry = { ...model, cursorId: primaryId, serverModelName: primaryId, legacyIds: [] };
+      out = Buffer.concat([
+        out,
+        ld(2, encodeAvailableModel(entry)),
+        ld(1, entry.cursorId),
+      ]);
+    }
   }
   if (usable.some((model) => (model.effort && model.effort.tiers.length) || (model.contextOptions || []).length || model.fast)) {
     out = Buffer.concat([out, vi(11, 1)]); // use_model_parameters
