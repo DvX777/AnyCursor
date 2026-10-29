@@ -23,7 +23,8 @@ Working now:
 - append-only `AvailableModels` merge with display names, effort, context and
   fast metadata
 - Cursor 3.x Agent Host local-loop support (`InferenceService/RunInference`),
-  with text, thinking, tool calls and native approvals
+  tested with text, thinking, tools, native approvals, images and explore
+  subagents
 - localhost health endpoint and web dashboard
 - settings UI for providers/models with validation, backups and hot reload
 - Windows installer: packaged extension, login pre-warm task, shortcut repair
@@ -40,10 +41,10 @@ Current provider adapters:
 
 Next:
 
-- image/file attachments through the Agent Host local loop
-- native subagent model resolution through the local loop
 - Bedrock streaming (ConverseStream)
-- native/BYOK route-switch tests
+- native/BYOK route-switch tests after Cursor quota resets
+- optional subagent latency tuning (lower effort / faster subagent model)
+- secret hardening with Windows Credential Manager
 
 ## Run the gateway
 
