@@ -9,12 +9,13 @@
   "cursor": {
     "backendUrl": "http://127.0.0.1:43110",
     "restartPolicy": "ask",
-    "patchShortcuts": true
+    "patchShortcuts": true,
+    "modelIdPrefix": "claude-anycursor"
   },
   "routing": {
     "nativePassthrough": true,
     "onUnknownModel": "native",
-    "defaultModel": "anycursor/opencode/deepseek-v4.1-flash"
+    "defaultModel": "claude-anycursor-opencode-deepseek-v4.1-flash"
   },
   "providers": {
     "opencode": {

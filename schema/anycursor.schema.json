@@ -54,6 +54,15 @@
         "backendUrl": {
           "type": "string"
         },
+        "modelIdPrefix": {
+          "type": "string",
+          "default": "claude-anycursor",
+          "description": "Prefix for generated Cursor model ids. Keep it out of Cursor BYOK classification; set empty for the legacy anycursor/ namespace."
+        },
+        "patchShortcuts": {
+          "type": "boolean",
+          "default": true
+        },
         "restartPolicy": {
           "enum": [
             "ask",
@@ -61,10 +70,6 @@
             "never"
           ],
           "default": "ask"
-        },
-        "patchShortcuts": {
-          "type": "boolean",
-          "default": true
         }
       }
     },

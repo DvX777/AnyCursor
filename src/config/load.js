@@ -68,8 +68,12 @@ function slug(value) {
     .replace(/^[-.]+|[-.]+$/g, '') || 'model';
 }
 
-function cursorModelId(provider, id) {
-  return `anycursor/${slug(provider)}/${slug(id)}`;
+function cursorModelId(provider, id, prefix = 'claude-anycursor') {
+  const cleanProvider = slug(provider);
+  const cleanId = slug(id);
+  const cleanPrefix = String(prefix || '').trim();
+  if (!cleanPrefix) return `anycursor/${cleanProvider}/${cleanId}`;
+  return `${slug(cleanPrefix)}-${cleanProvider}-${cleanId}`;
 }
 
 function normalizeHeaders(headers) {
@@ -180,7 +184,7 @@ function normalizeCapabilities(raw) {
   };
 }
 
-function normalizeModel(raw, providers, warnings, index) {
+function normalizeModel(raw, providers, warnings, index, cursorPrefix = 'claude-anycursor') {
   if (!isPlainObject(raw)) throw new Error(`models[${index}] must be an object`);
   const providerName = String(raw.provider || '').trim();
   if (!providerName) throw new Error(`models[${index}].provider is required`);
@@ -208,7 +212,7 @@ function normalizeModel(raw, providers, warnings, index) {
 
   return {
     id,
-    cursorId: String(raw.cursorId || '').trim() || cursorModelId(providerName, id),
+    cursorId: String(raw.cursorId || '').trim() || cursorModelId(providerName, id, cursorPrefix),
     legacyIds: Array.isArray(raw.legacyIds)
       ? raw.legacyIds.map((x) => String(x || '').trim()).filter(Boolean)
       : [],
@@ -274,8 +278,12 @@ function normalizeConfig(raw, options = {}) {
 
   const models = [];
   const cursorIds = new Map();
+  const cursorSettings = isPlainObject(interpolated.cursor) ? interpolated.cursor : {};
+  const cursorPrefix = cursorSettings.modelIdPrefix === undefined
+    ? 'claude-anycursor'
+    : String(cursorSettings.modelIdPrefix || '').trim();
   for (const [index, rawModel] of interpolated.models.entries()) {
-    const model = normalizeModel(rawModel, providers, warnings, index);
+    const model = normalizeModel(rawModel, providers, warnings, index, cursorPrefix);
     if (cursorIds.has(model.cursorId)) {
       throw new Error(`duplicate model id "${model.cursorId}" (also used by ${cursorIds.get(model.cursorId)})`);
     }
@@ -289,7 +297,8 @@ function normalizeConfig(raw, options = {}) {
   const cursor = {
     restartPolicy: 'ask',
     patchShortcuts: true,
-    ...(isPlainObject(interpolated.cursor) ? interpolated.cursor : {}),
+    modelIdPrefix: cursorPrefix,
+    ...cursorSettings,
   };
   cursor.backendUrl = cursor.backendUrl || `http://${gateway.host}:${gateway.port}`;
 

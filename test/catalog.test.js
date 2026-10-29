@@ -39,9 +39,9 @@ test('encodes model display name, real model id, effort and capabilities', () =>
   const model = config.models[0];
   const fields = readFields(encodeAvailableModel(model));
 
-  assert.equal(text(fields, 1), 'anycursor/opencode/deepseek-v4.1-flash');
+  assert.equal(text(fields, 1), 'claude-anycursor-opencode-deepseek-v4.1-flash');
   assert.equal(text(fields, 17), 'DeepSeek V4.1 Flash');
-  assert.equal(text(fields, 18), 'anycursor/opencode/deepseek-v4.1-flash');
+  assert.equal(text(fields, 18), 'claude-anycursor-opencode-deepseek-v4.1-flash');
   assert.equal(text(fields, 24), 'DeepSeek V4.1');
   assert.equal(text(fields, 39), 'OpenCode Go');
   assert.equal(num(fields, 5), 1);
@@ -66,8 +66,8 @@ test('appends models without changing native response bytes', () => {
   const fields = readFields(merged);
   const names = fields.filter((f) => f.no === 1).map((f) => f.value.toString('utf8'));
   assert.ok(names.includes('deepseek-v4.1-flash'));
-  assert.ok(names.includes('anycursor/anthropic/claude-sonnet-5.5'));
-  assert.ok(!names.includes('anycursor/opencode/deepseek-v4.1-flash'));
+  assert.ok(names.includes('claude-anycursor-anthropic-claude-sonnet-5.5'));
+  assert.ok(!names.includes('claude-anycursor-opencode-deepseek-v4.1-flash'));
   assert.equal(fields.filter((f) => f.no === 2).length, 3); // 1 native + 2 models
   assert.equal(num(fields, 11), 1);
 });
@@ -103,7 +103,7 @@ test('merges gzip-compressed native responses', () => {
   const fields = readFields(decoded);
   assert.equal(fields.filter((f) => f.no === 2).length, 3);
   assert.ok(fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'deepseek-v4.1-flash'));
-  assert.ok(!fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'anycursor/opencode/deepseek-v4.1-flash'));
+  assert.ok(!fields.filter((f) => f.no === 1).some((f) => f.value.toString('utf8') === 'claude-anycursor-opencode-deepseek-v4.1-flash'));
 });
 
 test('encodes parameter and variant values without extra nesting', () => {

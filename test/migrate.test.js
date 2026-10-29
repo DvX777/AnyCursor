@@ -58,7 +58,7 @@ test('migrates legacy model ids in Cursor state and composer data', () => {
   const migratedComposer = JSON.parse(after.prepare('SELECT value FROM cursorDiskKV WHERE key = ?').get('composerData:conv1').value);
   after.close();
 
-  const namespaced = 'anycursor/opencode/deepseek-v4.1-flash';
+  const namespaced = 'claude-anycursor-opencode-deepseek-v4.1-flash';
   assert.equal(migratedStorage.aiSettings.modelConfig.composer.modelName, namespaced);
   assert.equal(migratedStorage.aiSettings.modelConfig.composer.selectedModels[0].modelId, namespaced);
   assert.deepEqual(migratedStorage.aiSettings.modelOverrideEnabled, [namespaced]);

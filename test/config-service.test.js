@@ -14,7 +14,7 @@ const BASE = {
   routing: {
     nativePassthrough: true,
     onUnknownModel: 'native',
-    defaultModel: 'anycursor/local/model-a',
+    defaultModel: 'claude-anycursor-local-model-a',
   },
   providers: {
     local: {

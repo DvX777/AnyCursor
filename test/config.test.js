@@ -32,7 +32,7 @@ test('loads the example config and keeps display name separate from model id', (
   assert.equal(model.id, 'deepseek-v4.1-flash');
   assert.equal(model.displayName, 'DeepSeek V4.1 Flash');
   assert.equal(model.model, 'deepseek-v4.1-flash');
-  assert.equal(model.cursorId, 'anycursor/opencode/deepseek-v4.1-flash');
+  assert.equal(model.cursorId, 'claude-anycursor-opencode-deepseek-v4.1-flash');
   assert.equal(model.providerLabel, 'OpenCode Go');
   assert.equal(model.effort.default, 'high');
   assert.equal(model.contextOptions.length, 2);
@@ -93,6 +93,6 @@ test('rejects unknown providers and invalid default models', () => {
 });
 
 test('namespaced ids are stable and provider-scoped', () => {
-  assert.equal(cursorModelId('OpenCode', 'DeepSeek V4.1 Flash'), 'anycursor/opencode/deepseek-v4.1-flash');
+  assert.equal(cursorModelId('OpenCode', 'DeepSeek V4.1 Flash'), 'claude-anycursor-opencode-deepseek-v4.1-flash');
   assert.notEqual(cursorModelId('a', 'm'), cursorModelId('b', 'm'));
 });
