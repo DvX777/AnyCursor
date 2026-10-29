@@ -20,6 +20,12 @@ function contentToBlocks(content) {
     return content.map((part) => {
       if (typeof part === 'string') return { type: 'text', text: part };
       if (part && part.type === 'text') return { type: 'text', text: String(part.text || '') };
+      if (part && part.type === 'image_url') {
+        const url = String(part.image_url && part.image_url.url || '');
+        const match = /^data:([^;]+);base64,(.*)$/s.exec(url);
+        if (match) return { type: 'image', source: { type: 'base64', media_type: match[1], data: match[2] } };
+        if (url) return { type: 'image', source: { type: 'url', url } };
+      }
       if (part && part.text) return { type: 'text', text: String(part.text) };
       return null;
     }).filter(Boolean);

@@ -131,6 +131,42 @@ test('converts Cursor tools to provider function tools', () => {
   assert.equal(tools[0].function.name, 'read_file');
 });
 
+test('parses subagent model resolution requests', () => {
+  const resolution = Buffer.concat([
+    ld(1, Buffer.from('resolution-1')),
+    ld(2, Buffer.from('claude-anycursor-deepseek')),
+    ld(2, Buffer.from('gpt-5')),
+  ]);
+  const message = parseClientMessage(ld(9, resolution));
+  assert.equal(message.resolveSubagentModels.resolutionId, 'resolution-1');
+  assert.deepEqual(message.resolveSubagentModels.requestedModels, [
+    'claude-anycursor-deepseek',
+    'gpt-5',
+  ]);
+});
+
+test('parses image parts and converts them to provider image blocks', () => {
+  const image = ld(2, Buffer.concat([
+    ld(1, Buffer.from('aGVsbG8=')),
+    ld(2, Buffer.from('image/png')),
+  ]));
+  const user = Buffer.concat([
+    vi(1, 1),
+    ld(2, Buffer.from('look at this')),
+    ld(3, ld(1, image)),
+  ]);
+  const request = Buffer.concat([ld(1, user), ld(5, Buffer.from('model'))]);
+  const parsed = parseStreamRequest(request);
+  assert.equal(parsed.messages[0].images.length, 1);
+  assert.equal(parsed.messages[0].images[0].mimeType, 'image/png');
+
+  const converted = convertMessages(parsed.messages);
+  assert.ok(Array.isArray(converted[0].content));
+  assert.equal(converted[0].content[0].text, 'look at this');
+  assert.equal(converted[0].content[1].type, 'image_url');
+  assert.match(converted[0].content[1].image_url.url, /^data:image\/png;base64,/);
+});
+
 test('run_ready carries recognized prompt metadata and display name', () => {
   const frame = runReadyFrame({
     cursorId: 'claude-anycursor-deepseek',

@@ -196,12 +196,32 @@ function parseToolCall(buf) {
 }
 
 function parseContentParts(buf) {
-  const out = [];
+  const result = { text: '', images: [], files: [] };
   for (const part of all(buf, 1)) {
-    const t = text(part, 1);
-    if (t !== undefined) out.push(t);
+    const textPart = bytes(part, 1);
+    if (textPart !== undefined) {
+      result.text += text(textPart, 1) || '';
+      continue;
+    }
+    const image = bytes(part, 2);
+    if (image !== undefined) {
+      const data = text(image, 1) || '';
+      if (data) result.images.push({ data, mimeType: text(image, 2) || 'image/png' });
+      continue;
+    }
+    const file = bytes(part, 3);
+    if (file !== undefined) {
+      const data = text(file, 1) || '';
+      if (data) {
+        result.files.push({
+          data,
+          mediaType: text(file, 2) || 'application/octet-stream',
+          filename: text(file, 3) || 'attachment',
+        });
+      }
+    }
   }
-  return out.join('');
+  return result;
 }
 
 function parseToolResult(buf) {
@@ -209,7 +229,7 @@ function parseToolResult(buf) {
   for (const part of all(buf, 1)) {
     const id = text(part, 1) || '';
     let content = '';
-    for (const block of all(part, 5)) content += parseContentParts(block);
+    for (const block of all(part, 5)) content += parseContentParts(block).text;
     if (!content) content = decodeMaybe(bytes(part, 3));
     parts.push({ id, content, isError: !!int(part, 4) });
   }
@@ -221,12 +241,21 @@ function parseCoreMessage(buf) {
   const role = { 1: 'user', 2: 'assistant', 3: 'tool', 4: 'system' }[roleNo] || 'user';
   let content = text(buf, 2) || '';
   const parts = bytes(buf, 3);
-  if (parts !== undefined) content += parseContentParts(parts);
+  let images = [];
+  let files = [];
+  if (parts !== undefined) {
+    const parsed = parseContentParts(parts);
+    content += parsed.text;
+    images = parsed.images;
+    files = parsed.files;
+  }
   const toolCalls = all(buf, 4).map(parseToolCall);
   const toolResult = bytes(buf, 6);
   return {
     role,
     content,
+    images,
+    files,
     toolCalls,
     toolResults: toolResult === undefined ? [] : parseToolResult(toolResult),
   };
@@ -273,6 +302,13 @@ function parseInvokeModel(buf) {
   };
 }
 
+function parseSubagentResolution(buf) {
+  return {
+    resolutionId: text(buf, 1) || '',
+    requestedModels: all(buf, 2).map((item) => item.toString('utf8')).filter(Boolean),
+  };
+}
+
 function parseClientMessage(payload) {
   const f = fields(payload);
   const out = {};
@@ -282,11 +318,17 @@ function parseClientMessage(payload) {
     else if (item.no === 3) out.cancel = { invocationId: text(item.value, 1) || '' };
     else if (item.no === 4) out.finishRun = { aborted: !!int(item.value, 1) };
     else if (item.no === 5) out.heartbeat = true;
+    else if (item.no === 9) out.resolveSubagentModels = parseSubagentResolution(item.value);
   }
   return out;
 }
 
 /* ---------------- provider message conversion ---------------- */
+
+function imageUrl(image) {
+  if (/^https?:|^data:/i.test(image.data)) return image.data;
+  return `data:${image.mimeType || 'image/png'};base64,${image.data}`;
+}
 
 function convertMessages(messages) {
   const out = [];
@@ -301,10 +343,24 @@ function convertMessages(messages) {
       }
       continue;
     }
-    const converted = {
-      role: message.role,
-      content: message.content || '',
-    };
+    const converted = { role: message.role };
+    const images = Array.isArray(message.images) ? message.images : [];
+    const files = Array.isArray(message.files) ? message.files : [];
+    let content = message.content || '';
+    if (files.length) {
+      const notes = files.map((file) => `[Attached file: ${file.filename || 'attachment'} (${file.mediaType || 'file'})]`);
+      content = [content, ...notes].filter(Boolean).join('\n\n');
+    }
+    if (images.length) {
+      const blocks = [];
+      if (content) blocks.push({ type: 'text', text: content });
+      for (const image of images) {
+        blocks.push({ type: 'image_url', image_url: { url: imageUrl(image) } });
+      }
+      converted.content = blocks;
+    } else if (content) {
+      converted.content = content;
+    }
     if (message.toolCalls.length) {
       converted.tool_calls = message.toolCalls.map((call) => ({
         id: call.id,
@@ -314,7 +370,7 @@ function convertMessages(messages) {
           arguments: call.rawArgs || JSON.stringify(call.args || {}),
         },
       }));
-      if (!converted.content) delete converted.content;
+      if (!converted.content && !images.length) delete converted.content;
     }
     out.push(converted);
   }
@@ -415,6 +471,17 @@ function invocationEndFrame(invocationId, error) {
     ])));
   }
   return serverMessage(4, Buffer.concat(parts));
+}
+
+function subagentModelsFrame(resolution) {
+  const models = resolution.models.map((entry) => Buffer.concat([
+    ld(1, Buffer.from(entry.requested)),
+    entry.resolvedSlug ? ld(2, Buffer.from(entry.resolvedSlug)) : Buffer.alloc(0),
+  ]));
+  return serverMessage(5, Buffer.concat([
+    ld(1, Buffer.from(resolution.resolutionId)),
+    ...models.map((model) => ld(2, model)),
+  ]));
 }
 
 /* ---------------- stream handler ---------------- */
@@ -567,7 +634,19 @@ function handleRunInference(stream, hdrs, id, reqPath, options) {
       return;
     }
     if (!ready) return;
-    if (message.invokeModel) {
+    if (message.resolveSubagentModels) {
+      const resolution = {
+        resolutionId: message.resolveSubagentModels.resolutionId,
+        models: message.resolveSubagentModels.requestedModels.map((requested) => {
+          const resolved = resolve(requested);
+          return {
+            requested,
+            resolvedSlug: resolved && resolved.route === 'byok' ? resolved.model.cursorId : requested,
+          };
+        }),
+      };
+      send(subagentModelsFrame(resolution));
+    } else if (message.invokeModel) {
       queue = queue.then(() => runInvocation(message.invokeModel)).catch(() => {});
     } else if (message.cancel && currentAbort) {
       try { currentAbort.abort(); } catch (_) {}
