@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node src/gateway/index.js",
     "gateway": "node src/gateway/index.js",
+    "discover": "node scripts/discover-models.js",
     "test": "node --test",
     "check": "node --test"
   }

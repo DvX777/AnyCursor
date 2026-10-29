@@ -121,6 +121,9 @@
               "type": "string"
             }
           },
+          "modelsDevProvider": {
+            "type": "string"
+          },
           "query": {
             "type": "object",
             "additionalProperties": {

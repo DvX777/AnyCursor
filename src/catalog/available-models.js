@@ -146,14 +146,12 @@ function parameterValue(id, value) {
 }
 
 function tooltipData(model, label) {
-  const context = model.contextWindow ? `${Math.round(model.contextWindow / 1000)}K context window` : '';
   const title = label || model.displayName;
   const provider = model.providerLabel || 'AnyCursor';
-  const markdown = `**${title}**\n\nServed by ${provider}.${context ? `\n\n${context}` : ''}`;
+  const markdown = `**${title}**\n\nServed by ${provider}.`;
   return Buffer.concat([
     ld(1, title),
     ld(2, `Served by ${provider}.`),
-    context ? ld(5, context) : Buffer.alloc(0),
     ld(7, markdown),
   ]);
 }
@@ -167,7 +165,6 @@ function modelVariant(model, effort, context, fast) {
   const contexts = model.contextOptions || [];
   const defaultContext = contexts.length ? contexts[0] : null;
   const labelParts = [model.displayName];
-  if (context && contexts.length > 1 && context.id !== defaultContext.id) labelParts.push(context.label);
   if (effort) labelParts.push(effort.label || effort.id);
   if (fast) labelParts.push('Fast');
   const displayName = labelParts.join(' ');
@@ -207,7 +204,6 @@ function encodeAvailableModel(model) {
   if (model.capabilities.vision) parts.push(vi(10, 1));
   parts.push(vi(14, 1));    // supports_max_mode
   parts.push(vi(19, 1));    // supports_non_max_mode
-  parts.push(vi(23, 1));    // is_user_added (keep the selected native BYOK entry alive until migration)
   if (model.contextWindow) parts.push(vi(15, model.contextWindow));
   if (model.contextOptions && model.contextOptions.length) {
     const maxContext = model.contextOptions.reduce((max, option) => Math.max(max, option.value || 0), 0);

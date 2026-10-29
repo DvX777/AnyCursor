@@ -21,7 +21,8 @@
       "type": "openai-compatible",
       "baseUrl": "https://opencode.ai/inference/go/v1",
       "apiKey": "${OPENCODE_API_KEY}",
-      "endpoint": "/chat/completions"
+      "endpoint": "/chat/completions",
+      "modelsDevProvider": "opencode-go"
     },
     "anthropic": {
       "type": "anthropic",
@@ -68,14 +69,14 @@
             "value": "low"
           },
           {
-            "id": "medium",
-            "label": "Medium",
-            "value": "medium"
-          },
-          {
             "id": "high",
             "label": "High",
             "value": "high"
+          },
+          {
+            "id": "max",
+            "label": "Max",
+            "value": "max"
           }
         ],
         "default": "high",
