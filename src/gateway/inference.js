@@ -619,4 +619,7 @@ module.exports = {
   parseStreamRequest,
   convertMessages,
   convertTools,
+  runReadyFrame,
+  invocationResponseFrame,
+  invocationEndFrame,
 };

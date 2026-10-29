@@ -231,6 +231,10 @@
             "type": "integer",
             "minimum": 1
           },
+          "cursorId": {
+            "type": "string",
+            "description": "Exact Cursor model id. Use a non-BYOK prefix such as claude-anycursor- to keep Cursor on the local loop."
+          },
           "displayName": {
             "type": "string",
             "minLength": 1

@@ -22,6 +22,8 @@ Working now:
   native passthrough routing
 - append-only `AvailableModels` merge with display names, effort, context and
   fast metadata
+- Cursor 3.x Agent Host local-loop support (`InferenceService/RunInference`),
+  with text, thinking, tool calls and native approvals
 - localhost health endpoint and web dashboard
 - settings UI for providers/models with validation, backups and hot reload
 - Windows installer: packaged extension, login pre-warm task, shortcut repair
@@ -38,8 +40,9 @@ Current provider adapters:
 
 Next:
 
+- image/file attachments through the Agent Host local loop
+- native subagent model resolution through the local loop
 - Bedrock streaming (ConverseStream)
-- native model picker verification for effort/context/fast
 - native/BYOK route-switch tests
 
 ## Run the gateway
@@ -218,6 +221,21 @@ name:
 
 Cursor sees `anycursor/opencode/deepseek-v4.1-flash`; the provider receives
 `deepseek-v4.1-flash`; the picker shows `DeepSeek V4.1 Flash`.
+
+### Cursor 3.x Agent Host IDs
+
+With Cursor's Agent Host local loop, a model ID that Cursor classifies as a
+native BYOK model is routed back to Cursor's backend and can hit subscription
+gating. Give the model an explicit non-BYOK Cursor ID:
+
+```json
+"cursorId": "claude-anycursor-deepseek-v4.1-flash"
+```
+
+AnyCursor answers Cursor's `InferenceService/RunInference` stream itself, so the
+provider key still comes from your config. If you later enable Cursor's own
+Claude key, use a different prefix (for example `gemini-anycursor-...`) or
+disable that Cursor key toggle.
 
 ## Move chats between workspaces
 
