@@ -81,25 +81,31 @@ gateway restart; everything else applies live.
 
 ```powershell
 cd C:\Project\AnyCursor
-npm run install:windows
+npm run install:windows          # per-user, no admin: Startup shortcut fallback
+npm run install:windows:admin    # one UAC prompt: registers a login task
 ```
+
+The admin variant only elevates the login-task registration; the gateway still
+runs as your normal user. If the UAC prompt is cancelled, the installer falls
+back to the Startup shortcut.
 
 The installer:
 
 1. creates `%LOCALAPPDATA%\AnyCursor\config.json` if it does not exist
 2. stages the gateway inside the extension and packages a VSIX
 3. installs the extension with the Cursor CLI
-4. registers a `AnyCursor Gateway` login task, or a hidden Startup-folder
-   entry when Windows policy blocks task creation
+4. registers a `AnyCursor Gateway` login task when permitted, or a hidden
+   `AnyCursor Gateway` Startup shortcut when Windows policy blocks tasks
 5. updates Desktop, Start Menu and Taskbar Cursor shortcuts to add
    `--test-backend-url http://127.0.0.1:<port>`
 6. waits for the gateway health endpoint
 
 Shortcut backups are written next to each shortcut as `*.lnk.anycursor.bak`.
 When task registration is denied, the installer writes a hidden
-`Startup\AnyCursor Gateway.vbs` instead; both are removed by the uninstaller.
+`AnyCursor Gateway.lnk` Startup shortcut plus a hidden launcher script in
+`%LOCALAPPDATA%\AnyCursor`; both are removed by the uninstaller.
 Options: `-SkipPackage`, `-SkipExtension`, `-SkipTask`, `-SkipShortcuts`,
-`-Port`, `-Config`, `-TaskName`.
+`-RequestAdmin`, `-Port`, `-Config`, `-TaskName`.
 
 In Cursor, use the command palette:
 
@@ -126,6 +132,13 @@ Run the gateway manually with a specific config:
 ```powershell
 node src\gateway\index.js --config C:\path\to\anycursor.json
 ```
+
+### About `--test-backend-url`
+
+This is Cursor's own internal switch for pointing the desktop app at another
+backend; Cursor exposes no public alternative. It is not a leftover test value.
+AnyCursor keeps shortcuts pointed at `Cursor.exe` with that flag instead of
+shipping a custom launcher, so Windows still trusts the shortcut target.
 
 ## Verify the native picker (development)
 

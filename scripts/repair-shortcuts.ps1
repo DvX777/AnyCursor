@@ -1,6 +1,7 @@
 param(
   [int]$Port = 0,
   [string]$Config = "",
+  [string]$BackendUrl = "",
   [switch]$Undo,
   [switch]$DryRun
 )
@@ -31,15 +32,20 @@ if ([string]::IsNullOrWhiteSpace($Config)) {
   elseif (Test-Path $localConfig) { $Config = $localConfig }
 }
 
-if ($Port -le 0) {
-  $Port = 43110
+if ($Port -le 0 -or [string]::IsNullOrWhiteSpace($BackendUrl)) {
+  if ($Port -le 0) { $Port = 43110 }
   if ($Config -and (Test-Path $Config)) {
     try {
       $json = Get-Content $Config -Raw | ConvertFrom-Json
-      if ($json.gateway -and $json.gateway.port) { $Port = [int]$json.gateway.port }
+      if ($Port -le 0 -and $json.gateway -and $json.gateway.port) { $Port = [int]$json.gateway.port }
+      if ([string]::IsNullOrWhiteSpace($BackendUrl) -and $json.cursor -and $json.cursor.backendUrl) {
+        $BackendUrl = [string]$json.cursor.backendUrl
+      }
     } catch { }
   }
 }
+if ([string]::IsNullOrWhiteSpace($BackendUrl)) { $BackendUrl = "http://127.0.0.1:$Port" }
+if ($BackendUrl -notmatch '^https?://') { throw "backend URL must start with http:// or https://: $BackendUrl" }
 
 $exe = Resolve-CursorExe
 if (-not $exe) { throw "Cursor.exe not found; install Cursor first" }
@@ -51,7 +57,7 @@ $roots = @(
   (Join-Path $env:APPDATA "Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar")
 ) | Where-Object { $_ -and (Test-Path $_) }
 
-$flag = "--test-backend-url http://127.0.0.1:$Port"
+$flag = "--test-backend-url $BackendUrl"
 $shell = New-Object -ComObject WScript.Shell
 $changed = @()
 

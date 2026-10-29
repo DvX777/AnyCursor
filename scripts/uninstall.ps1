@@ -14,10 +14,16 @@ if ($task) {
   Write-Host "Login task '$TaskName' was not registered." -ForegroundColor Yellow
 }
 
-$startupEntry = Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.vbs'
-if (Test-Path $startupEntry) {
-  Remove-Item $startupEntry -Force
-  Write-Host "Removed startup entry '$startupEntry'." -ForegroundColor Green
+$startupEntries = @(
+  (Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.lnk'),
+  (Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.vbs'),
+  (Join-Path $env:LOCALAPPDATA 'AnyCursor\gateway-start.vbs')
+)
+foreach ($entry in $startupEntries) {
+  if (Test-Path $entry) {
+    Remove-Item $entry -Force
+    Write-Host "Removed startup entry '$entry'." -ForegroundColor Green
+  }
 }
 
 $gateways = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |

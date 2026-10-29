@@ -5,7 +5,8 @@ param(
   [switch]$SkipPackage,
   [switch]$SkipExtension,
   [switch]$SkipTask,
-  [switch]$SkipShortcuts
+  [switch]$SkipShortcuts,
+  [switch]$RequestAdmin
 )
 
 $ErrorActionPreference = "Stop"
@@ -98,19 +99,76 @@ $gatewayRoot = Split-Path (Split-Path $gateway -Parent) -Parent
 
 function Install-StartupFallback {
   param([string]$Node, [string]$Gateway, [string]$ConfigFile)
+  $dataDir = Join-Path $env:LOCALAPPDATA 'AnyCursor'
   $startup = [Environment]::GetFolderPath('Startup')
-  New-Item -ItemType Directory -Force -Path $startup | Out-Null
-  $vbs = Join-Path $startup 'AnyCursor Gateway.vbs'
+  New-Item -ItemType Directory -Force -Path $dataDir, $startup | Out-Null
+
+  $vbs = Join-Path $dataDir 'gateway-start.vbs'
   $command = "`"$Node`" `"$Gateway`" --config `"$ConfigFile`""
   $escaped = $command.Replace('"', '""')
   $content = 'CreateObject("WScript.Shell").Run "' + $escaped + '", 0, False' + "`r`n"
   Set-Content -Path $vbs -Value $content -Encoding ASCII
-  Write-Host "Created hidden startup entry: $vbs" -ForegroundColor Green
-  return $vbs
+  (Get-Item $vbs).Attributes = 'Hidden'
+
+  # A .lnk shows as "AnyCursor Gateway" with no file extension in Explorer,
+  # Task Manager and the Startup apps list.
+  $link = Join-Path $startup 'AnyCursor Gateway.lnk'
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcut = $shell.CreateShortcut($link)
+  $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
+  $shortcut.Arguments = "//B `"$vbs`""
+  $shortcut.WorkingDirectory = $dataDir
+  $shortcut.WindowStyle = 7
+  $shortcut.Description = 'Pre-warms the AnyCursor gateway at login.'
+  if (Test-Path $Node) { $shortcut.IconLocation = "$Node,0" }
+  $shortcut.Save()
+
+  $legacy = Join-Path $startup 'AnyCursor Gateway.vbs'
+  if (Test-Path $legacy) { Remove-Item $legacy -Force }
+  Write-Host "Created startup shortcut: $link" -ForegroundColor Green
+  return $link
+}
+
+function Test-IsAdmin {
+  $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+  $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+  return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Quote-Argument([string]$Value) {
+  return "'" + $Value.Replace("'", "''") + "'"
+}
+
+function Remove-StartupFallback {
+  $startup = [Environment]::GetFolderPath('Startup')
+  foreach ($name in @('AnyCursor Gateway.lnk', 'AnyCursor Gateway.vbs')) {
+    $path = Join-Path $startup $name
+    if (Test-Path $path) { Remove-Item $path -Force }
+  }
+  $hidden = Join-Path $env:LOCALAPPDATA 'AnyCursor\gateway-start.vbs'
+  if (Test-Path $hidden) { Remove-Item $hidden -Force }
+}
+
+function Register-TaskElevated {
+  param([string]$Node, [string]$Gateway, [string]$ConfigFile, [string]$WorkingDir)
+  $helper = Join-Path $PSScriptRoot 'register-gateway-task.ps1'
+  if (-not (Test-Path $helper)) { throw "task helper not found: $helper" }
+  $command = '& ' + (Quote-Argument $helper) +
+    ' -TaskName ' + (Quote-Argument $TaskName) +
+    ' -Node ' + (Quote-Argument $Node) +
+    ' -Gateway ' + (Quote-Argument $Gateway) +
+    ' -Config ' + (Quote-Argument $ConfigFile) +
+    ' -WorkingDirectory ' + (Quote-Argument $WorkingDir)
+  $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+  $process = Start-Process -FilePath 'powershell.exe' `
+    -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) `
+    -Verb RunAs -WindowStyle Hidden -Wait -PassThru
+  return $process.ExitCode -eq 0
 }
 
 if (-not $SkipTask) {
   $taskOk = $false
+  $taskFailure = ''
   try {
     Write-Host "Registering the login task '$TaskName'..." -ForegroundColor Cyan
     $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -126,20 +184,45 @@ if (-not $SkipTask) {
       -Description "Pre-warms the AnyCursor gateway at login." | Out-Null
     Start-ScheduledTask -TaskName $TaskName
     $taskOk = $true
-    $startupEntry = Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.vbs'
-    if (Test-Path $startupEntry) { Remove-Item $startupEntry -Force }
-    Write-Host "Task registered and started." -ForegroundColor Green
   } catch {
-    Write-Warning "Scheduled task registration is not permitted ($($_.Exception.Message))."
-    Write-Host "Falling back to a hidden Startup-folder entry." -ForegroundColor Yellow
+    $taskFailure = $_.Exception.Message
   }
 
-  if (-not $taskOk) {
+  if (-not $taskOk -and $RequestAdmin -and -not (Test-IsAdmin)) {
+    Write-Host "Administrator approval requested for the login task (one-time UAC prompt)..." -ForegroundColor Cyan
+    try {
+      if (Register-TaskElevated -Node $node -Gateway $gateway -ConfigFile $Config -WorkingDir $gatewayRoot) {
+        $taskOk = $true
+      } else {
+        Write-Warning "The elevated task helper failed."
+      }
+    } catch {
+      Write-Warning "Administrator approval was cancelled or failed: $($_.Exception.Message)"
+    }
+  }
+
+  if ($taskOk) {
+    Remove-StartupFallback
+    Write-Host "Task registered and started." -ForegroundColor Green
+  } else {
+    if ($taskFailure) {
+      Write-Warning "Scheduled task registration is not permitted ($taskFailure)."
+    }
+    Write-Host "Falling back to a hidden Startup shortcut (no admin required)." -ForegroundColor Yellow
     Install-StartupFallback -Node $node -Gateway $gateway -ConfigFile $Config | Out-Null
-    Start-Process -FilePath $node `
-      -ArgumentList @("`"$gateway`"", '--config', "`"$Config`"") `
-      -WorkingDirectory $gatewayRoot -WindowStyle Hidden
-    Write-Host "Gateway started now and will start hidden at every login." -ForegroundColor Green
+
+    $healthy = $false
+    try {
+      $probePort = if ($Port -gt 0) { $Port } else { 43110 }
+      Invoke-RestMethod -UseBasicParsing "http://127.0.0.1:$probePort/health" -TimeoutSec 2 | Out-Null
+      $healthy = $true
+    } catch { }
+    if (-not $healthy) {
+      Start-Process -FilePath $node `
+        -ArgumentList @("`"$gateway`"", '--config', "`"$Config`"") `
+        -WorkingDirectory $gatewayRoot -WindowStyle Hidden
+    }
+    Write-Host "Gateway is pre-warmed and will start hidden at every login." -ForegroundColor Green
   }
 }
 

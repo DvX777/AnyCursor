@@ -14,6 +14,7 @@
     "history": "node scripts/import-history.js",
     "package:extension": "node scripts/stage-extension.js && cd extension && npx --yes @vscode/vsce package --no-dependencies",
     "install:windows": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
+    "install:windows:admin": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -RequestAdmin",
     "repair:shortcuts": "powershell -ExecutionPolicy Bypass -File scripts/repair-shortcuts.ps1",
     "uninstall:windows": "powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1",
     "test": "node --test",
