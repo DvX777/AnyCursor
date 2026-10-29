@@ -90,7 +90,10 @@ foreach ($dir in $roots) {
         continue
       }
 
-      $backup = "$($link.FullName).anycursor.bak"
+      $backupDir = Join-Path $env:LOCALAPPDATA 'AnyCursor\backups\shortcuts'
+      New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+      $safeName = ($link.FullName -replace '^[A-Za-z]:\\', '' -replace '[\\/:*?"<>|]', '_')
+      $backup = Join-Path $backupDir "$safeName.anycursor.bak"
       if (-not (Test-Path $backup)) { Copy-Item $link.FullName $backup }
 
       $shortcut.Arguments = $next

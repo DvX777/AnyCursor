@@ -105,7 +105,8 @@ The installer:
    `--test-backend-url http://127.0.0.1:<port>`
 6. waits for the gateway health endpoint
 
-Shortcut backups are written next to each shortcut as `*.lnk.anycursor.bak`.
+Shortcut backups are written under
+`%LOCALAPPDATA%\AnyCursor\backups\shortcuts`, not next to the shortcuts.
 When task registration is denied, the installer builds a hidden
 `%LOCALAPPDATA%\AnyCursor\AnyCursor Gateway.exe` helper, adds an `AnyCursor
 Gateway` Startup shortcut, and uses it to pre-warm the gateway hidden. Task
