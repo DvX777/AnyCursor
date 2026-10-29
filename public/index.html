@@ -296,6 +296,7 @@
             ${isBedrock ? field('Session token', `<input type="password" autocomplete="off" value="" placeholder="${p.hasSessionToken ? 'stored — leave blank to keep' : 'optional'}" oninput="setProvider(${index}, 'sessionToken', this.value)">`) : ''}
             ${isBedrock ? field('', check('Clear stored secret / session token', false, `setProvider(${index}, 'clearSecretAccessKey', this.checked);setProvider(${index}, 'clearSessionToken', this.checked)`)) : ''}
             ${field('models.dev provider id', textInput(p.modelsDevProvider || '', `setProvider(${index}, 'modelsDevProvider', this.value)`, { placeholder: 'opencode-go', hint: 'Used by npm run discover to load effort tiers.' }))}
+            ${field('Credential source', textInput(p.credential || '', `setProvider(${index}, 'credential', this.value)`, { placeholder: 'opencode-go', hint: 'Reuse a local integration credential when no API key is set.' }))}
             ${field('API version header', textInput(p.version || '', `setProvider(${index}, 'version', this.value)`, { placeholder: '2023-06-01' }))}
           </div>
         </div>`;

@@ -90,6 +90,7 @@ function normalizeProvider(name, raw, warnings) {
   const provider = {
     id: name,
     type: raw.type,
+    credential: raw.credential || '',
     modelsDevProvider: raw.modelsDevProvider || '',
     baseUrl: raw.baseUrl || '',
     endpoint: raw.endpoint || '',

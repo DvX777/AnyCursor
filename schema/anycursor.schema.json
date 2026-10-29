@@ -109,6 +109,10 @@
           "baseUrl": {
             "type": "string"
           },
+          "credential": {
+            "type": "string",
+            "description": "Reuse a credential from a local integration, e.g. opencode-go."
+          },
           "deployment": {
             "type": "string"
           },

@@ -25,6 +25,7 @@ const { buildRegistry } = require('../catalog/registry');
 const { transformCatalog } = require('../catalog/response');
 const { selectedModelIds } = require('../cursor/state');
 const providers = require('../providers');
+const { cachedOpencodeCredential } = require('../providers/opencode-credential');
 const history = require('../history/import');
 
 const argv = process.argv.slice(2);
@@ -62,6 +63,18 @@ function applyConfig() {
 
 function currentConfig() {
   return configService.config;
+}
+
+function providerApiKey(provider) {
+  if (!provider) return '';
+  if (provider.apiKey) return provider.apiKey;
+  if (provider.credential === 'opencode-go'
+    || provider.modelsDevProvider === 'opencode-go'
+    || /opencode\.ai\/inference\/go/i.test(provider.baseUrl || '')) {
+    const credential = cachedOpencodeCredential();
+    if (credential && credential.key) return credential.key;
+  }
+  return '';
 }
 
 // Apply edits made outside the dashboard (editor, git, installer scripts).
@@ -317,7 +330,7 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
         : { apiKey: parsed.apiKey, baseUrl: parsed.baseUrl };
       const creds = byokModel
         ? {
-            apiKey: byokModel.apiKey || (byokProvider && byokProvider.apiKey) || parsed.apiKey || '',
+            apiKey: byokModel.apiKey || providerApiKey(byokProvider) || parsed.apiKey || '',
             baseUrl: byokModel.baseUrl
               || (byokProvider && (byokProvider.baseUrl || byokProvider.endpoint))
               || parsed.baseUrl
@@ -751,7 +764,7 @@ function statusPayload() {
       ? Object.fromEntries(Object.entries(config.providers).map(([name, provider]) => [name, {
           type: provider.type,
           baseUrl: provider.baseUrl || provider.endpoint || '',
-          configured: !!(provider.apiKey || provider.accessKeyId),
+          configured: !!(providerApiKey(provider) || provider.accessKeyId),
         }]))
       : {},
     models: config ? config.models.map(redactModel) : [],

@@ -22,7 +22,8 @@
       "baseUrl": "https://opencode.ai/inference/go/v1",
       "apiKey": "${OPENCODE_API_KEY}",
       "endpoint": "/chat/completions",
-      "modelsDevProvider": "opencode-go"
+      "modelsDevProvider": "opencode-go",
+      "credential": "opencode-go"
     },
     "anthropic": {
       "type": "anthropic",
