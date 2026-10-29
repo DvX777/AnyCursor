@@ -17,7 +17,9 @@ if ($task) {
 $startupEntries = @(
   (Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.lnk'),
   (Join-Path ([Environment]::GetFolderPath('Startup')) 'AnyCursor Gateway.vbs'),
-  (Join-Path $env:LOCALAPPDATA 'AnyCursor\gateway-start.vbs')
+  (Join-Path $env:LOCALAPPDATA 'AnyCursor\gateway-start.vbs'),
+  (Join-Path $env:LOCALAPPDATA 'AnyCursor\AnyCursor.exe'),
+  (Join-Path $env:LOCALAPPDATA 'AnyCursor\AnyCursorLauncher.cs')
 )
 foreach ($entry in $startupEntries) {
   if (Test-Path $entry) {

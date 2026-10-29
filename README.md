@@ -94,16 +94,18 @@ The installer:
 1. creates `%LOCALAPPDATA%\AnyCursor\config.json` if it does not exist
 2. stages the gateway inside the extension and packages a VSIX
 3. installs the extension with the Cursor CLI
-4. registers a `AnyCursor Gateway` login task when permitted, or a hidden
-   `AnyCursor Gateway` Startup shortcut when Windows policy blocks tasks
+4. registers a `AnyCursor Gateway` login task when permitted, or builds
+   `AnyCursor.exe` and adds an `AnyCursor Gateway` Startup shortcut when
+   Windows policy blocks tasks
 5. updates Desktop, Start Menu and Taskbar Cursor shortcuts to add
    `--test-backend-url http://127.0.0.1:<port>`
 6. waits for the gateway health endpoint
 
 Shortcut backups are written next to each shortcut as `*.lnk.anycursor.bak`.
-When task registration is denied, the installer writes a hidden
-`AnyCursor Gateway.lnk` Startup shortcut plus a hidden launcher script in
-`%LOCALAPPDATA%\AnyCursor`; both are removed by the uninstaller.
+When task registration is denied, the installer builds a small
+`%LOCALAPPDATA%\AnyCursor\AnyCursor.exe` launcher, adds an `AnyCursor Gateway`
+Startup shortcut, and uses it to pre-warm the gateway hidden. Task Manager shows
+`AnyCursor.exe`, not `wscript.exe`. Both are removed by the uninstaller.
 Options: `-SkipPackage`, `-SkipExtension`, `-SkipTask`, `-SkipShortcuts`,
 `-RequestAdmin`, `-Port`, `-Config`, `-TaskName`.
 

@@ -103,25 +103,41 @@ function Install-StartupFallback {
   $startup = [Environment]::GetFolderPath('Startup')
   New-Item -ItemType Directory -Force -Path $dataDir, $startup | Out-Null
 
-  $vbs = Join-Path $dataDir 'gateway-start.vbs'
-  $command = "`"$Node`" `"$Gateway`" --config `"$ConfigFile`""
-  $escaped = $command.Replace('"', '""')
-  $content = 'CreateObject("WScript.Shell").Run "' + $escaped + '", 0, False' + "`r`n"
-  Set-Content -Path $vbs -Value $content -Encoding ASCII
-  (Get-Item $vbs).Attributes = 'Hidden'
-
-  # A .lnk shows as "AnyCursor Gateway" with no file extension in Explorer,
-  # Task Manager and the Startup apps list.
   $link = Join-Path $startup 'AnyCursor Gateway.lnk'
+  $launcher = Join-Path $dataDir 'AnyCursor.exe'
+  $launcherOk = $false
+  try {
+    & (Join-Path $PSScriptRoot 'build-launcher.ps1') -Node $Node -OutDir $dataDir | Out-Null
+    $launcherOk = Test-Path $launcher
+  } catch {
+    Write-Warning "Could not build AnyCursor.exe ($($_.Exception.Message)); using the script launcher."
+  }
+
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($link)
-  $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
-  $shortcut.Arguments = "//B `"$vbs`""
   $shortcut.WorkingDirectory = $dataDir
   $shortcut.WindowStyle = 7
   $shortcut.Description = 'Pre-warms the AnyCursor gateway at login.'
-  if (Test-Path $Node) { $shortcut.IconLocation = "$Node,0" }
-  $shortcut.Save()
+
+  if ($launcherOk) {
+    $shortcut.TargetPath = $launcher
+    $shortcut.Arguments = ''
+    $shortcut.IconLocation = "$launcher,0"
+    $shortcut.Save()
+    $hiddenVbs = Join-Path $dataDir 'gateway-start.vbs'
+    if (Test-Path $hiddenVbs) { Remove-Item $hiddenVbs -Force }
+  } else {
+    $vbs = Join-Path $dataDir 'gateway-start.vbs'
+    $command = "`"$Node`" `"$Gateway`" --config `"$ConfigFile`""
+    $escaped = $command.Replace('"', '""')
+    $content = 'CreateObject("WScript.Shell").Run "' + $escaped + '", 0, False' + "`r`n"
+    Set-Content -Path $vbs -Value $content -Encoding ASCII
+    (Get-Item $vbs).Attributes = 'Hidden'
+    $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
+    $shortcut.Arguments = "//B `"$vbs`""
+    $shortcut.IconLocation = "$Node,0"
+    $shortcut.Save()
+  }
 
   $legacy = Join-Path $startup 'AnyCursor Gateway.vbs'
   if (Test-Path $legacy) { Remove-Item $legacy -Force }
@@ -145,8 +161,11 @@ function Remove-StartupFallback {
     $path = Join-Path $startup $name
     if (Test-Path $path) { Remove-Item $path -Force }
   }
-  $hidden = Join-Path $env:LOCALAPPDATA 'AnyCursor\gateway-start.vbs'
-  if (Test-Path $hidden) { Remove-Item $hidden -Force }
+  $dataDir = Join-Path $env:LOCALAPPDATA 'AnyCursor'
+  foreach ($name in @('gateway-start.vbs', 'AnyCursor.exe', 'AnyCursorLauncher.cs')) {
+    $path = Join-Path $dataDir $name
+    if (Test-Path $path) { Remove-Item $path -Force }
+  }
 }
 
 function Register-TaskElevated {
