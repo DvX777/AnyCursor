@@ -318,7 +318,7 @@ function normalizeConfig(raw, options = {}) {
 }
 
 function loadConfig(file, options = {}) {
-  const text = fs.readFileSync(file, 'utf8');
+  const text = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
   let raw;
   try {
     raw = JSON.parse(text);

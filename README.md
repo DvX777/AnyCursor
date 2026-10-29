@@ -23,6 +23,7 @@ Working now:
 - append-only `AvailableModels` merge with display names, effort, context and
   fast metadata
 - localhost health endpoint and web dashboard
+- settings UI for providers/models with validation, backups and hot reload
 - Cursor extension skeleton that starts/supervises the gateway on activation
 
 Current provider adapters:
@@ -38,7 +39,6 @@ Next:
 - Bedrock streaming (ConverseStream)
 - native model picker verification for effort/context/fast
 - shortcut repair and pre-warmed gateway service
-- settings UI editing
 - native/BYOK route-switch tests
 
 ## Run the gateway
@@ -53,6 +53,28 @@ Open `http://127.0.0.1:43110/` for the dashboard and `/health` for diagnostics.
 
 The example config uses environment references for keys. Missing keys are
 reported as warnings and can be filled in later.
+
+## Configure without editing JSON
+
+The dashboard at `http://127.0.0.1:<port>/` has tabs for providers, models,
+gateway/routing and raw JSON. **Save changes** validates the config, writes a
+timestamped `.bak` backup, and applies it to new requests without restarting
+the gateway. External edits to the config file are picked up automatically.
+
+Stored secrets are never sent to the browser: they are replaced with empty
+strings and a `has…` flag. Leaving a key field empty keeps the saved value;
+use the clear checkbox to remove it.
+
+Config API:
+
+```text
+GET  /api/config          redacted config + warnings + restart-required fields
+POST /api/config          {"config": {...}} validate, back up, save, apply
+POST /api/config/reload   reload the file from disk
+```
+
+Host, port, upstream and data-directory changes are reported as requiring a
+gateway restart; everything else applies live.
 
 ## Verify the native picker (development)
 

@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const nodeCrypto = require('crypto');
 
-const { loadConfig } = require('../config/load');
+const { ConfigService } = require('../config/service');
 const { buildRegistry } = require('../catalog/registry');
 const { transformCatalog } = require('../catalog/response');
 const { selectedModelIds } = require('../cursor/state');
@@ -28,19 +28,50 @@ const providers = require('../providers');
 
 const CONFIG_PATH = process.env.ANY_CURSOR_CONFIG
   || path.join(__dirname, '..', '..', 'config', 'anycursor.json');
-let CONFIG = null;
-let CONFIG_WARNINGS = [];
-let CONFIG_ERROR = '';
-if (fs.existsSync(CONFIG_PATH)) {
+const configService = new ConfigService(CONFIG_PATH);
+let registry = configService.config ? buildRegistry(configService.config) : null;
+const initialConfig = configService.config;
+
+function applyConfig() {
+  registry = configService.config ? buildRegistry(configService.config) : null;
+  adapter.configure({
+    sessionsDir: path.join(DATA_DIR, 'sessions'),
+    workspace: (configService.config && configService.config.gateway && configService.config.gateway.workspace) || undefined,
+  });
+  return configService.config;
+}
+
+function currentConfig() {
+  return configService.config;
+}
+
+// Apply edits made outside the dashboard (editor, git, installer scripts).
+function watchConfig() {
+  let timer = null;
+  const reload = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      const before = JSON.stringify(configService.raw || null);
+      const loaded = configService.load();
+      if (!loaded) {
+        console.error(`[anycursor] config reload failed: ${configService.error}`);
+        return;
+      }
+      if (JSON.stringify(configService.raw || null) === before) return;
+      applyConfig();
+      console.log(`[anycursor] config reloaded from ${CONFIG_PATH}`);
+    }, 250);
+  };
   try {
-    const loaded = loadConfig(CONFIG_PATH);
-    CONFIG = loaded.config;
-    CONFIG_WARNINGS = loaded.warnings;
-  } catch (error) {
-    CONFIG_ERROR = String(error && error.message ? error.message : error);
+    fs.watch(path.dirname(CONFIG_PATH), { persistent: false }, (_event, filename) => {
+      if (!filename || filename === path.basename(CONFIG_PATH)) reload();
+    });
+  } catch (_) {
+    // fs.watch is unavailable on some network shares; poll instead.
+    fs.watchFile(CONFIG_PATH, { interval: 2000 }, reload);
   }
 }
-const registry = CONFIG ? buildRegistry(CONFIG) : null;
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -48,13 +79,17 @@ function arg(name, fallback) {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 }
 
-const CONFIG_PORT = CONFIG && CONFIG.gateway ? CONFIG.gateway.port : undefined;
-const CONFIG_HOST = CONFIG && CONFIG.gateway ? CONFIG.gateway.host : undefined;
+const CONFIG_PORT = initialConfig && initialConfig.gateway ? initialConfig.gateway.port : undefined;
+const CONFIG_HOST = initialConfig && initialConfig.gateway ? initialConfig.gateway.host : undefined;
 const PORT = Number(arg('port', process.env.ANY_CURSOR_PORT || process.env.CURSOR_PROXY_PORT || CONFIG_PORT || 43110));
 const HOST = arg('host', process.env.ANY_CURSOR_HOST || process.env.CURSOR_PROXY_HOST || CONFIG_HOST || '127.0.0.1');
-const DEFAULT_UPSTREAM = arg('upstream', process.env.ANY_CURSOR_UPSTREAM || process.env.CURSOR_PROXY_UPSTREAM || (CONFIG && CONFIG.gateway && CONFIG.gateway.upstream) || 'https://api2.cursor.sh');
+const PORT_EXPLICIT = argv.includes('--port') || !!process.env.ANY_CURSOR_PORT || !!process.env.CURSOR_PROXY_PORT;
+const HOST_EXPLICIT = argv.includes('--host') || !!process.env.ANY_CURSOR_HOST || !!process.env.CURSOR_PROXY_HOST;
+const UPSTREAM_EXPLICIT = argv.includes('--upstream') || !!process.env.ANY_CURSOR_UPSTREAM || !!process.env.CURSOR_PROXY_UPSTREAM;
+const DATA_DIR_EXPLICIT = !!process.env.ANY_CURSOR_DATA_DIR;
+const DEFAULT_UPSTREAM = arg('upstream', process.env.ANY_CURSOR_UPSTREAM || process.env.CURSOR_PROXY_UPSTREAM || (initialConfig && initialConfig.gateway && initialConfig.gateway.upstream) || 'https://api2.cursor.sh');
 const DATA_DIR = process.env.ANY_CURSOR_DATA_DIR
-  || (CONFIG && CONFIG.gateway && CONFIG.gateway.dataDir)
+  || (initialConfig && initialConfig.gateway && initialConfig.gateway.dataDir)
   || path.join(__dirname, '..', '..', 'data');
 const MAX_CAPTURE = 8 * 1024 * 1024;
 const SAVE_BODIES = argv.includes('--save-bodies') || process.env.CURSOR_PROXY_SAVE_BODIES === '1';
@@ -62,8 +97,9 @@ const adapter = require('./adapter');
 
 adapter.configure({
   sessionsDir: path.join(DATA_DIR, 'sessions'),
-  workspace: (CONFIG && CONFIG.gateway && CONFIG.gateway.workspace) || undefined,
+  workspace: (initialConfig && initialConfig.gateway && initialConfig.gateway.workspace) || undefined,
 });
+watchConfig();
 
 const ROUTES = [
   [/^\/origin\.v1\./, 'https://api.origin.cursor.com'],
@@ -230,7 +266,8 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
     const requestedModelId = parsed.modelId;
     const resolvedRoute = registry ? registry.resolve(parsed.modelId) : { route: 'native' };
     const byokModel = resolvedRoute.route === 'byok' ? resolvedRoute.model : null;
-    const byokProvider = byokModel && CONFIG ? CONFIG.providers[byokModel.provider] : null;
+    const config = currentConfig();
+    const byokProvider = byokModel && config ? config.providers[byokModel.provider] : null;
     if (byokModel) parsed.modelId = byokModel.model;
     const messages = adapter.buildMessages(parsed);
     querySeq = Math.max(0, (parsed.nextInteractionQueryId || 1) - 1);
@@ -681,34 +718,80 @@ function redactModel(model) {
 }
 
 function statusPayload() {
+  const config = currentConfig();
   return {
-    ok: !CONFIG_ERROR,
+    ok: !!config,
     version: PKG.version,
     uptimeMs: Date.now() - STARTED_AT,
     configPath: CONFIG_PATH,
-    configLoaded: !!CONFIG,
-    configError: CONFIG_ERROR,
-    warnings: CONFIG_WARNINGS,
+    configLoaded: !!config,
+    configError: configService.error,
+    warnings: configService.warnings,
     gateway: {
       host: HOST,
       port: PORT,
       upstream: DEFAULT_UPSTREAM,
       dataDir: DATA_DIR,
     },
-    routing: CONFIG ? CONFIG.routing : null,
-    providers: CONFIG
-      ? Object.fromEntries(Object.entries(CONFIG.providers).map(([name, provider]) => [name, {
+    routing: config ? config.routing : null,
+    providers: config
+      ? Object.fromEntries(Object.entries(config.providers).map(([name, provider]) => [name, {
           type: provider.type,
           baseUrl: provider.baseUrl || provider.endpoint || '',
           configured: !!(provider.apiKey || provider.accessKeyId),
         }]))
       : {},
-    models: CONFIG ? CONFIG.models.map(redactModel) : [],
+    models: config ? config.models.map(redactModel) : [],
+  };
+}
+
+function restartRequired(config) {
+  const gateway = (config && config.gateway) || {};
+  return {
+    host: !HOST_EXPLICIT && gateway.host !== HOST,
+    port: !PORT_EXPLICIT && Number(gateway.port || 43110) !== PORT,
+    upstream: !UPSTREAM_EXPLICIT && (gateway.upstream || 'https://api2.cursor.sh') !== DEFAULT_UPSTREAM,
+    dataDir: !DATA_DIR_EXPLICIT && !!gateway.dataDir && path.resolve(gateway.dataDir) !== path.resolve(DATA_DIR),
+  };
+}
+
+function readJsonBody(req, limit = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(new Error('request body is too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      const text = Buffer.concat(chunks).toString('utf8').trim();
+      if (!text) return resolve({});
+      try {
+        resolve(JSON.parse(text));
+      } catch (error) {
+        reject(new Error(`invalid JSON: ${error.message}`));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function configPayload(extra = {}) {
+  const redacted = configService.redacted();
+  return {
+    ...redacted,
+    restartRequired: restartRequired(configService.config),
+    gateway: { host: HOST, port: PORT, upstream: DEFAULT_UPSTREAM, dataDir: DATA_DIR },
+    ...extra,
   };
 }
 
 function handleLocal(req, res) {
-  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
   let pathname;
   try {
     pathname = new URL(req.url, `http://${HOST}:${PORT}`).pathname;
@@ -717,12 +800,56 @@ function handleLocal(req, res) {
   }
   const headOnly = req.method === 'HEAD';
 
+  if (pathname === '/api/config') {
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      sendJson(res, 200, configPayload(), headOnly);
+      return true;
+    }
+    if (req.method === 'POST') {
+      readJsonBody(req).then((body) => {
+        const next = body && body.config ? body.config : body;
+        try {
+          const result = configService.save(next);
+          applyConfig();
+          log({
+            id: ++seq, ts: new Date().toISOString(), dir: 'config-save',
+            path: CONFIG_PATH, models: configService.config.models.length, backup: result.backup,
+          });
+          sendJson(res, 200, configPayload({ ok: true, backup: result.backup }));
+        } catch (error) {
+          sendJson(res, 400, { ok: false, error: String(error && error.message ? error.message : error) });
+        }
+      }, (error) => {
+        sendJson(res, 400, { ok: false, error: String(error && error.message ? error.message : error) });
+      });
+      return true;
+    }
+    res.writeHead(405, { allow: 'GET, HEAD, POST', 'content-type': 'text/plain; charset=utf-8' });
+    res.end('method not allowed');
+    return true;
+  }
+
+  if (pathname === '/api/config/reload' && req.method === 'POST') {
+    const loaded = configService.load();
+    if (!loaded) {
+      sendJson(res, 400, { ok: false, error: configService.error });
+      return true;
+    }
+    applyConfig();
+    log({ id: ++seq, ts: new Date().toISOString(), dir: 'config-reload', path: CONFIG_PATH });
+    sendJson(res, 200, configPayload({ ok: true }));
+    return true;
+  }
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+
   if (pathname === '/health' || pathname === '/api/status') {
-    sendJson(res, CONFIG_ERROR ? 503 : 200, statusPayload(), headOnly);
+    sendJson(res, currentConfig() ? 200 : 503, statusPayload(), headOnly);
     return true;
   }
   if (pathname === '/api/models') {
-    sendJson(res, 200, { models: CONFIG ? CONFIG.models.map(redactModel) : [] }, headOnly);
+    const config = currentConfig();
+    sendJson(res, 200, { models: config ? config.models.map(redactModel) : [] }, headOnly);
     return true;
   }
   if (pathname === '/favicon.ico') {
@@ -822,12 +949,12 @@ const h1 = http.createServer((req, res) => {
         const original = Buffer.concat(rchunks);
         let out = original;
         let merged = false;
-        if (upRes.statusCode === 200 && CONFIG && CONFIG.models.length) {
+        if (upRes.statusCode === 200 && currentConfig() && currentConfig().models.length) {
           try {
             const transformed = transformCatalog(
               original,
               upRes.headers,
-              CONFIG.models,
+              currentConfig().models,
               selectedModelIds(),
             );
             out = transformed.body;
@@ -1061,7 +1188,7 @@ function start() {
       server.removeListener('error', onError);
       console.log(`[anycursor] listening on http://${HOST}:${PORT} (h1 + h2c)`);
       console.log(`[anycursor] default upstream: ${DEFAULT_UPSTREAM}`);
-      console.log(`[anycursor] config: ${CONFIG_PATH}${CONFIG ? '' : ' (not loaded)'}`);
+      console.log(`[anycursor] config: ${CONFIG_PATH}${configService.config ? '' : ' (not loaded)'}`);
       console.log(`[anycursor] logs: ${LOG_DIR}`);
       resolve({ host: HOST, port: PORT });
     });
@@ -1082,8 +1209,10 @@ process.on('SIGINT', () => {
 module.exports = {
   start,
   server,
-  getConfig: () => CONFIG,
+  configService,
+  getConfig: () => configService.config,
   getRegistry: () => registry,
+  reloadConfig: () => { configService.load(); return applyConfig(); },
   getStatus: () => statusPayload(),
   configPath: CONFIG_PATH,
 };

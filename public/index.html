@@ -5,27 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AnyCursor</title>
   <style>
-    :root { color-scheme: dark; --bg:#0d0f12; --panel:#15181d; --line:#262b33; --text:#e7e9ee; --muted:#8c93a1; --accent:#7aa2ff; --warn:#ffcc66; --bad:#ff6b6b; }
+    :root { color-scheme: dark; --bg:#0d0f12; --panel:#15181d; --line:#262b33; --text:#e7e9ee; --muted:#8c93a1; --accent:#7aa2ff; --warn:#ffcc66; --bad:#ff6b6b; --ok:#7ee787; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, Segoe UI, sans-serif; }
-    header { padding:24px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+    header { padding:20px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     header h1 { font-size:18px; margin:0; font-weight:650; }
     header .tag { color:var(--muted); font-size:12px; }
-    main { max-width:1100px; margin:0 auto; padding:24px 28px 60px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:24px; }
+    header .spacer { flex:1; }
+    main { max-width:1100px; margin:0 auto; padding:24px 28px 80px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:20px; }
     .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
     .card .label { color:var(--muted); font-size:12px; margin-bottom:6px; }
     .card .value { font-size:20px; font-weight:600; }
-    .ok { color:#7ee787; } .bad { color:var(--bad); } .warn { color:var(--warn); }
+    .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+    .pill { display:inline-block; padding:2px 8px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; }
+    .pill.ok { color:var(--ok); border-color:#20452b; } .pill.bad { color:var(--bad); border-color:#4a2326; }
     h2 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin:28px 0 10px; }
-    table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-    th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
-    th { color:var(--muted); font-size:12px; font-weight:500; }
-    tr:last-child td { border-bottom:0; }
-    code, .mono { font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:12px; }
-    .pill { display:inline-block; padding:2px 7px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; }
-    .muted { color:var(--muted); }
+    .tabs { display:flex; gap:6px; border-bottom:1px solid var(--line); margin:8px 0 18px; flex-wrap:wrap; }
+    .tabs button { background:transparent; color:var(--muted); border:1px solid transparent; border-bottom:0; padding:9px 14px; border-radius:8px 8px 0 0; cursor:pointer; font:inherit; }
+    .tabs button:hover { color:var(--text); }
+    .tabs button.active { color:var(--text); background:var(--panel); border-color:var(--line); }
+    .panel { display:none; }
+    .panel.active { display:block; }
+    .form { margin-bottom:14px; }
+    .form-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .form-head strong { font-size:15px; }
+    .form-head .spacer { flex:1; }
+    .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px 14px; }
+    .field { display:flex; flex-direction:column; gap:4px; }
+    .field.wide { grid-column:1 / -1; }
+    .field label { color:var(--muted); font-size:12px; }
+    input[type=text], input[type=password], input[type=number], select, textarea {
+      width:100%; background:#0f1217; color:var(--text); border:1px solid var(--line);
+      border-radius:7px; padding:7px 9px; font:inherit; font-size:13px;
+    }
+    input:focus, select:focus, textarea:focus { outline:1px solid var(--accent); border-color:var(--accent); }
+    input[type=checkbox] { width:auto; accent-color:var(--accent); }
+    .inline { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:12px; padding-top:2px; }
+    .inline input[type=checkbox] { margin:0; }
+    textarea { min-height:360px; font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:12px; line-height:1.5; }
+    button.act { background:var(--accent); color:#08101f; border:1px solid var(--accent); padding:7px 13px; border-radius:7px; font:inherit; font-weight:600; cursor:pointer; }
+    button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); padding:7px 13px; border-radius:7px; font:inherit; cursor:pointer; }
+    button.danger { background:transparent; color:var(--bad); border:1px solid #4a2326; padding:5px 10px; border-radius:7px; font:inherit; font-size:12px; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:default; }
+    .hint { color:var(--muted); font-size:12px; margin-top:4px; }
+    .banner { display:none; margin:0 0 18px; padding:11px 14px; border-radius:9px; border:1px solid var(--line); background:var(--panel); }
+    .banner.show { display:block; }
+    .banner.good { border-color:#20452b; color:var(--ok); }
+    .banner.bad { border-color:#4a2326; color:var(--bad); }
     .warnings { margin:0; padding-left:18px; color:var(--warn); }
+    .mono { font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:12px; }
+    .muted { color:var(--muted); }
+    footer.actions { position:sticky; bottom:0; margin-top:26px; padding:12px 0; background:linear-gradient(transparent, var(--bg) 30%); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    footer .spacer { flex:1; }
+    .dirty { color:var(--warn); font-size:12px; }
   </style>
 </head>
 <body>
@@ -33,8 +66,13 @@
     <h1>AnyCursor</h1>
     <span class="tag">local gateway</span>
     <span id="status-pill" class="pill">loading…</span>
+    <span class="spacer"></span>
+    <button id="reload-btn" class="ghost" onclick="reloadConfig()">Reload from disk</button>
   </header>
+
   <main>
+    <div id="banner" class="banner"></div>
+
     <div class="grid">
       <div class="card"><div class="label">Gateway</div><div class="value mono" id="gateway">—</div></div>
       <div class="card"><div class="label">Models</div><div class="value" id="model-count">—</div></div>
@@ -42,28 +80,68 @@
       <div class="card"><div class="label">Uptime</div><div class="value" id="uptime">—</div></div>
     </div>
 
-    <h2>Configuration</h2>
-    <table>
-      <tr><th>Config file</th><td class="mono" id="config-path">—</td></tr>
-      <tr><th>Status</th><td id="config-status">—</td></tr>
-      <tr><th>Warnings</th><td><ul class="warnings" id="warnings"></ul></td></tr>
-    </table>
+    <div class="tabs" role="tablist">
+      <button data-tab="providers" class="active" onclick="showTab('providers')">Providers</button>
+      <button data-tab="models" onclick="showTab('models')">Models</button>
+      <button data-tab="gateway" onclick="showTab('gateway')">Gateway &amp; routing</button>
+      <button data-tab="raw" onclick="showTab('raw')">Raw JSON</button>
+    </div>
 
-    <h2>Models</h2>
-    <table>
-      <thead><tr><th>Display name</th><th>Cursor ID</th><th>Provider</th><th>Model</th><th>Effort</th><th>Context</th><th>Fast</th></tr></thead>
-      <tbody id="models"></tbody>
-    </table>
+    <section id="panel-providers" class="panel active">
+      <div class="form-head">
+        <strong>Providers</strong>
+        <span class="muted">Credentials stay on this machine. Stored secrets are never sent to the browser.</span>
+        <span class="spacer"></span>
+        <button class="ghost" onclick="addProvider()">Add provider</button>
+      </div>
+      <div id="provider-forms"></div>
+    </section>
 
-    <h2>Providers</h2>
-    <table>
-      <thead><tr><th>Name</th><th>Type</th><th>Endpoint</th><th>Key configured</th></tr></thead>
-      <tbody id="providers"></tbody>
-    </table>
+    <section id="panel-models" class="panel">
+      <div class="form-head">
+        <strong>Models</strong>
+        <span class="muted">Each model becomes an AnyCursor entry in Cursor's model picker.</span>
+        <span class="spacer"></span>
+        <button class="ghost" onclick="addModel()">Add model</button>
+      </div>
+      <div id="model-forms"></div>
+    </section>
+
+    <section id="panel-gateway" class="panel">
+      <div class="card form">
+        <div class="form-head"><strong>Gateway</strong><span class="muted">Host and port changes need a gateway restart.</span></div>
+        <div class="fields" id="gateway-fields"></div>
+      </div>
+      <div class="card form">
+        <div class="form-head"><strong>Routing</strong></div>
+        <div class="fields" id="routing-fields"></div>
+      </div>
+      <div class="card">
+        <div class="label">Config file</div>
+        <div class="mono" id="config-path">—</div>
+        <div class="hint" id="config-meta"></div>
+        <div id="warnings-box" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <section id="panel-raw" class="panel">
+      <p class="hint">Advanced editing. Stored secrets are shown as empty strings; leave them empty to keep the saved value. Press “Apply JSON” to load your edits into the forms, then “Save”.</p>
+      <textarea id="raw-json" spellcheck="false"></textarea>
+      <div style="margin-top:10px"><button class="ghost" onclick="applyRaw()">Apply JSON</button></div>
+    </section>
+
+    <footer class="actions">
+      <button id="save-btn" class="act" onclick="saveConfig()">Save changes</button>
+      <span id="dirty" class="dirty"></span>
+      <span class="spacer"></span>
+      <span class="muted mono" id="footer-path"></span>
+    </footer>
   </main>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const attr = (s) => esc(s).replace(/`/g, '&#96;');
     const fmtUptime = (ms) => {
       const s = Math.floor(ms / 1000);
       if (s < 60) return `${s}s`;
@@ -71,42 +149,445 @@
       if (m < 60) return `${m}m ${s % 60}s`;
       return `${Math.floor(m / 60)}h ${m % 60}m`;
     };
-    async function refresh() {
+
+    const TYPES = ['openai-compatible', 'anthropic', 'google', 'azure-openai', 'bedrock'];
+    let CFG = null;
+    let META = null;
+    let dirty = false;
+    let activeTab = 'providers';
+
+    function setBanner(text, kind) {
+      const el = $('banner');
+      el.className = 'banner show ' + (kind || '');
+      el.innerHTML = text;
+    }
+    function clearBanner() { $('banner').className = 'banner'; }
+
+    function markDirty(value) {
+      dirty = value !== false;
+      $('dirty').textContent = dirty ? 'unsaved changes' : '';
+    }
+
+    function showTab(name) {
+      activeTab = name;
+      document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
+    }
+
+    function field(label, control, opts = {}) {
+      return `<div class="field${opts.wide ? ' wide' : ''}"><label>${esc(label)}</label>${control}${opts.hint ? `<div class="hint">${esc(opts.hint)}</div>` : ''}</div>`;
+    }
+    function textInput(value, oninput, opts = {}) {
+      return `<input type="text" value="${attr(value ?? '')}" placeholder="${attr(opts.placeholder || '')}" ${opts.event || 'oninput'}="${oninput}">`;
+    }
+    function numberInput(value, oninput, opts = {}) {
+      return `<input type="number" value="${value ?? ''}" placeholder="${attr(opts.placeholder || '')}" oninput="${oninput}">`;
+    }
+    function check(label, checked, onchange) {
+      return `<label class="inline"><input type="checkbox" ${checked ? 'checked' : ''} onchange="${onchange}"> ${esc(label)}</label>`;
+    }
+    function blankToNull(value) {
+      const text = String(value ?? '').trim();
+      return text === '' ? null : value;
+    }
+
+    // ---------- providers ----------
+    function providerNames() { return Object.keys(CFG.providers || {}); }
+
+    function setProvider(index, key, value) {
+      const name = providerNames()[index];
+      const provider = CFG.providers[name];
+      if (!provider) return;
+      if (key === 'clearApiKey' || key === 'clearSecretAccessKey' || key === 'clearSessionToken') {
+        provider[key] = !!value;
+        if (value) provider[key.replace('clear', '').replace(/^./, (c) => c.toLowerCase())] = '';
+        return;
+      }
+      if (value) {
+        if (key === 'apiKey') provider.clearApiKey = false;
+        if (key === 'secretAccessKey') provider.clearSecretAccessKey = false;
+        if (key === 'sessionToken') provider.clearSessionToken = false;
+      }
+      provider[key] = value;
+      markDirty();
+    }
+    function setProviderType(index, type) {
+      const provider = CFG.providers[providerNames()[index]];
+      provider.type = type;
+      markDirty();
+      renderProviders();
+    }
+    function addProvider() {
+      const base = 'provider';
+      let name = base;
+      let n = 2;
+      while (CFG.providers[name]) name = `${base}-${n++}`;
+      CFG.providers[name] = { type: 'openai-compatible', baseUrl: '', apiKey: '' };
+      markDirty();
+      renderProviders();
+    }
+    function removeProvider(index) {
+      const name = providerNames()[index];
+      const used = (CFG.models || []).filter((m) => m.provider === name);
+      if (used.length) {
+        alert(`Provider "${name}" is used by ${used.length} model(s). Change those models first.`);
+        return;
+      }
+      if (!confirm(`Remove provider "${name}"?`)) return;
+      delete CFG.providers[name];
+      markDirty();
+      renderProviders();
+      renderRaw();
+    }
+
+    function renderProviders() {
+      const names = providerNames();
+      $('provider-forms').innerHTML = names.map((name, index) => {
+        const p = CFG.providers[name] || {};
+        const isBedrock = p.type === 'bedrock';
+        const isAzure = p.type === 'azure-openai';
+        const typeOptions = TYPES.map((t) => `<option value="${t}" ${p.type === t ? 'selected' : ''}>${t}</option>`).join('');
+        return `<div class="card form">
+          <div class="form-head">
+            <strong>${esc(name)}</strong>
+            <span class="pill">${esc(p.type || 'unset')}</span>
+            <span class="spacer"></span>
+            <button class="danger" onclick="removeProvider(${index})">Remove</button>
+          </div>
+          <div class="fields">
+            ${field('Type', `<select onchange="setProviderType(${index}, this.value)">${typeOptions}</select>`)}
+            ${field('Base URL', textInput(p.baseUrl || '', `setProvider(${index}, 'baseUrl', this.value)`, { placeholder: 'https://api.example.com/v1' }))}
+            ${field('Endpoint path', textInput(p.endpoint || '', `setProvider(${index}, 'endpoint', this.value)`, { placeholder: '/chat/completions' }))}
+            ${isAzure ? field('Deployment', textInput(p.deployment || '', `setProvider(${index}, 'deployment', this.value)`)) : ''}
+            ${isAzure ? field('API version', textInput(p.apiVersion || '', `setProvider(${index}, 'apiVersion', this.value)`)) : ''}
+            ${field('API key', `<input type="password" autocomplete="off" value="" placeholder="${p.hasApiKey ? 'stored — leave blank to keep' : 'not set'}" oninput="setProvider(${index}, 'apiKey', this.value)">`)}
+            ${field('', check('Clear stored API key', false, `setProvider(${index}, 'clearApiKey', this.checked)`))}
+            ${isBedrock ? field('Region', textInput(p.region || '', `setProvider(${index}, 'region', this.value)`, { placeholder: 'us-east-1' })) : ''}
+            ${isBedrock ? field('Access key id', textInput(p.accessKeyId || '', `setProvider(${index}, 'accessKeyId', this.value)`)) : ''}
+            ${isBedrock ? field('Secret access key', `<input type="password" autocomplete="off" value="" placeholder="${p.hasSecretAccessKey ? 'stored — leave blank to keep' : 'not set'}" oninput="setProvider(${index}, 'secretAccessKey', this.value)">`) : ''}
+            ${isBedrock ? field('Session token', `<input type="password" autocomplete="off" value="" placeholder="${p.hasSessionToken ? 'stored — leave blank to keep' : 'optional'}" oninput="setProvider(${index}, 'sessionToken', this.value)">`) : ''}
+            ${isBedrock ? field('', check('Clear stored secret / session token', false, `setProvider(${index}, 'clearSecretAccessKey', this.checked);setProvider(${index}, 'clearSessionToken', this.checked)`)) : ''}
+            ${field('models.dev provider id', textInput(p.modelsDevProvider || '', `setProvider(${index}, 'modelsDevProvider', this.value)`, { placeholder: 'opencode-go', hint: 'Used by npm run discover to load effort tiers.' }))}
+            ${field('API version header', textInput(p.version || '', `setProvider(${index}, 'version', this.value)`, { placeholder: '2023-06-01' }))}
+          </div>
+        </div>`;
+      }).join('') || '<div class="card muted">No providers yet. Add one to get started.</div>';
+    }
+
+    // ---------- models ----------
+    function modelAt(index) { return (CFG.models || [])[index]; }
+    function setModel(index, key, value) {
+      const m = modelAt(index);
+      if (!m) return;
+      m[key] = value;
+      markDirty();
+    }
+    function setModelNumber(index, key, value) {
+      const m = modelAt(index);
+      if (!m) return;
+      const n = Number(value);
+      if (value === '' || Number.isNaN(n)) delete m[key];
+      else m[key] = n;
+      markDirty();
+    }
+    function setCapability(index, key, value) {
+      const m = modelAt(index);
+      m.capabilities = m.capabilities || {};
+      m.capabilities[key] = !!value;
+      markDirty();
+    }
+    function tierLabel(id) {
+      return id ? id.charAt(0).toUpperCase() + id.slice(1) : id;
+    }
+    function effortText(model) {
+      if (!model || !model.effort || !Array.isArray(model.effort.tiers)) return '';
+      return model.effort.tiers.map((t) => `${t.id}:${t.label || tierLabel(t.id)}`).join(', ');
+    }
+    function contextText(model) {
+      if (!model || !Array.isArray(model.contextOptions)) return '';
+      return model.contextOptions.map((c) => `${c.id}:${c.value}`).join(', ');
+    }
+    function setEffortText(index, text) {
+      const m = modelAt(index);
+      const tiers = String(text).split(',').map((part) => part.trim()).filter(Boolean).map((part) => {
+        const [id, ...rest] = part.split(':');
+        const tierId = id.trim();
+        return { id: tierId, label: (rest.join(':').trim() || tierLabel(tierId)), value: tierId };
+      });
+      if (!tiers.length) delete m.effort;
+      else {
+        const previous = m.effort || {};
+        m.effort = {
+          tiers,
+          default: tiers.some((t) => t.id === previous.default) ? previous.default : tiers[0].id,
+          requestField: previous.requestField || 'reasoning_effort',
+        };
+      }
+      markDirty();
+      renderModels();
+    }
+    function setEffortDefault(index, value) {
+      const m = modelAt(index);
+      if (!m.effort) return;
+      m.effort.default = value;
+      markDirty();
+    }
+    function setEffortField(index, value) {
+      const m = modelAt(index);
+      if (!m.effort) return;
+      m.effort.requestField = value;
+      markDirty();
+    }
+    function setContextText(index, text) {
+      const m = modelAt(index);
+      const options = String(text).split(',').map((part) => part.trim()).filter(Boolean).map((part) => {
+        const [id, value] = part.split(':');
+        const optionId = id.trim();
+        return { id: optionId, label: optionId.toUpperCase(), value: Number(String(value || '').trim()) || 0 };
+      });
+      if (!options.length) delete m.contextOptions;
+      else m.contextOptions = options;
+      markDirty();
+      renderModels();
+    }
+    function setLegacyIds(index, text) {
+      const m = modelAt(index);
+      const ids = String(text).split(',').map((s) => s.trim()).filter(Boolean);
+      if (ids.length) m.legacyIds = ids; else delete m.legacyIds;
+      markDirty();
+    }
+    function addModel() {
+      const provider = providerNames()[0];
+      if (!provider) { alert('Add a provider first.'); return; }
+      const used = new Set((CFG.models || []).map((m) => m.id));
+      let id = 'model';
+      let n = 2;
+      while (used.has(id)) id = `model-${n++}`;
+      CFG.models = CFG.models || [];
+      CFG.models.push({
+        id,
+        displayName: 'New model',
+        shortName: 'New model',
+        providerLabel: provider,
+        provider,
+        model: id,
+        contextWindow: 128000,
+        maxOutput: 8192,
+        fast: false,
+        enabled: true,
+        capabilities: { tools: true, vision: false, reasoning: false, streaming: true, cache: false },
+      });
+      markDirty();
+      renderModels();
+      renderRaw();
+    }
+    function removeModel(index) {
+      const m = modelAt(index);
+      if (!m) return;
+      if (!confirm(`Remove model "${m.displayName || m.id}"?`)) return;
+      CFG.models.splice(index, 1);
+      markDirty();
+      renderModels();
+      renderRaw();
+    }
+
+    function renderModels() {
+      const models = CFG.models || [];
+      const providerOptions = (selected) => providerNames().map((name) => `<option value="${attr(name)}" ${name === selected ? 'selected' : ''}>${esc(name)}</option>`).join('');
+      $('model-forms').innerHTML = models.map((m, index) => {
+        const effort = m.effort || null;
+        const defaultOptions = effort
+          ? effort.tiers.map((t) => `<option value="${attr(t.id)}" ${t.id === effort.default ? 'selected' : ''}>${esc(t.label || t.id)}</option>`).join('')
+          : '<option value="">no effort tiers</option>';
+        const caps = m.capabilities || {};
+        return `<div class="card form">
+          <div class="form-head">
+            <strong>${esc(m.displayName || m.id || 'model')}</strong>
+            <span class="pill mono">${esc(m.id || '')}</span>
+            <span class="spacer"></span>
+            <button class="danger" onclick="removeModel(${index})">Remove</button>
+          </div>
+          <div class="fields">
+            ${field('Display name', textInput(m.displayName || '', `setModel(${index}, 'displayName', this.value)`))}
+            ${field('Model id (slug)', textInput(m.id || '', `setModel(${index}, 'id', this.value)`, { hint: 'Namespaced automatically per provider.' }))}
+            ${field('Provider', `<select onchange="setModel(${index}, 'provider', this.value)">${providerOptions(m.provider)}</select>`)}
+            ${field('Real model id', textInput(m.model || '', `setModel(${index}, 'model', this.value)`, { hint: 'Sent to the provider unchanged.' }))}
+            ${field('Short name', textInput(m.shortName || '', `setModel(${index}, 'shortName', this.value)`))}
+            ${field('Provider label', textInput(m.providerLabel || '', `setModel(${index}, 'providerLabel', this.value)`))}
+            ${field('Vendor', textInput(m.vendor || '', `setModel(${index}, 'vendor', this.value)`))}
+            ${field('Context window (tokens)', numberInput(m.contextWindow, `setModelNumber(${index}, 'contextWindow', this.value)`))}
+            ${field('Max output (tokens)', numberInput(m.maxOutput, `setModelNumber(${index}, 'maxOutput', this.value)`))}
+            ${field('Effort tiers', textInput(effortText(m), `setEffortText(${index}, this.value)`, { event: 'onchange', placeholder: 'low:Low, high:High, max:Max', hint: 'id:Label pairs, comma separated. Blur to apply.' }))}
+            ${field('Default effort', `<select onchange="setEffortDefault(${index}, this.value)" ${effort ? '' : 'disabled'}>${defaultOptions}</select>`)}
+            ${field('Effort request field', textInput(effort ? effort.requestField || '' : '', `setEffortField(${index}, this.value)`, { placeholder: 'reasoning_effort' }))}
+            ${field('Context options', textInput(contextText(m), `setContextText(${index}, this.value)`, { event: 'onchange', placeholder: '272k:272000, 1m:1000000', hint: 'id:token pairs. Blur to apply.' }))}
+            ${field('Legacy model ids', textInput((m.legacyIds || []).join(', '), `setLegacyIds(${index}, this.value)`, { placeholder: 'old-id, another-id' }))}
+            ${field('Capabilities', `<div>
+              ${check('Tools', caps.tools, `setCapability(${index}, 'tools', this.checked)`)}
+              ${check('Vision', caps.vision, `setCapability(${index}, 'vision', this.checked)`)}
+              ${check('Reasoning', caps.reasoning, `setCapability(${index}, 'reasoning', this.checked)`)}
+              ${check('Streaming', caps.streaming !== false, `setCapability(${index}, 'streaming', this.checked)`)}
+              ${check('Cache', caps.cache, `setCapability(${index}, 'cache', this.checked)`)}
+            </div>`, { wide: true })}
+            ${field('Options', `<div>
+              ${check('Fast mode', m.fast === true, `setModel(${index}, 'fast', this.checked)`)}
+              ${check('Enabled', m.enabled !== false, `setModel(${index}, 'enabled', this.checked)`)}
+            </div>`, { wide: true })}
+          </div>
+        </div>`;
+      }).join('') || '<div class="card muted">No models yet. Add one after configuring a provider.</div>';
+    }
+
+    // ---------- gateway / routing ----------
+    function renderGateway() {
+      const g = CFG.gateway || {};
+      const r = CFG.routing || {};
+      $('gateway-fields').innerHTML = [
+        field('Host', textInput(g.host || '127.0.0.1', `setNested('gateway', 'host', this.value)`)),
+        field('Port', numberInput(g.port || 43110, `setNested('gateway', 'port', this.value)`)),
+        field('Upstream', textInput(g.upstream || '', `setNested('gateway', 'upstream', this.value)`, { placeholder: 'https://api2.cursor.sh' })),
+        field('Data directory', textInput(g.dataDir || '', `setNested('gateway', 'dataDir', this.value)`, { wide: true, placeholder: '%LOCALAPPDATA%\\AnyCursor' })),
+      ].join('');
+      $('routing-fields').innerHTML = [
+        field('Native passthrough', `<div>${check('Forward unknown models to Cursor', r.nativePassthrough !== false, `setNested('routing', 'nativePassthrough', this.checked)`)}</div>`),
+        field('Unknown model', `<select onchange="setNested('routing', 'onUnknownModel', this.value)">
+          <option value="native" ${r.onUnknownModel === 'native' ? 'selected' : ''}>native</option>
+          <option value="error" ${r.onUnknownModel === 'error' ? 'selected' : ''}>error</option>
+        </select>`),
+        field('Default model', textInput(r.defaultModel || '', `setNested('routing', 'defaultModel', this.value)`, { wide: true })),
+      ].join('');
+      $('config-path').textContent = META ? META.path : '—';
+      const restart = META && META.restartRequired ? Object.entries(META.restartRequired).filter(([, v]) => v).map(([k]) => k) : [];
+      $('config-meta').textContent = (META && META.error ? `Config error: ${META.error}` : 'Config loaded. Changes apply to new requests immediately.') +
+        (restart.length ? ` Restart required for: ${restart.join(', ')}.` : '');
+      $('footer-path').textContent = META ? META.path : '';
+      $('warnings-box').innerHTML = (META && META.warnings && META.warnings.length)
+        ? `<ul class="warnings">${META.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`
+        : '<span class="muted">No warnings.</span>';
+    }
+    function setNested(section, key, value) {
+      CFG[section] = CFG[section] || {};
+      if (key === 'port') {
+        const n = Number(value);
+        CFG[section][key] = Number.isNaN(n) ? value : n;
+      } else CFG[section][key] = value;
+      markDirty();
+    }
+
+    // ---------- raw ----------
+    function renderRaw() {
+      $('raw-json').value = JSON.stringify(CFG, null, 2);
+    }
+    function applyRaw() {
+      try {
+        const parsed = JSON.parse($('raw-json').value);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('config must be a JSON object');
+        CFG = parsed;
+        markDirty();
+        renderAll();
+        showTab('providers');
+        setBanner('JSON applied to the editor. Press “Save changes” to write it.', '');
+      } catch (error) {
+        setBanner('JSON error: ' + esc(error.message), 'bad');
+      }
+    }
+
+    function renderAll() {
+      renderProviders();
+      renderModels();
+      renderGateway();
+      renderRaw();
+    }
+
+    // ---------- load / save ----------
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        META = await res.json();
+        CFG = META.config || {};
+        markDirty(false);
+        renderAll();
+        updateStatus();
+        if (META.error) setBanner('Config error: ' + esc(META.error), 'bad');
+        else clearBanner();
+      } catch (error) {
+        setBanner('Cannot reach the gateway: ' + esc(error.message), 'bad');
+      }
+    }
+
+    async function saveConfig() {
+      if (!CFG) return;
+      $('save-btn').disabled = true;
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ config: CFG }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          setBanner('Save failed: ' + esc(data.error || `HTTP ${res.status}`), 'bad');
+          return;
+        }
+        META = data;
+        CFG = data.config || CFG;
+        markDirty(false);
+        const restart = Object.entries(data.restartRequired || {}).filter(([, v]) => v).map(([k]) => k);
+        setBanner(`Saved. Backup: <span class="mono">${esc(data.backup || '')}</span>${restart.length ? `<br>Restart required for: ${esc(restart.join(', '))}.` : '<br>Applied to new requests without a restart.'}`, 'good');
+        renderAll();
+        updateStatus();
+      } catch (error) {
+        setBanner('Save failed: ' + esc(error.message), 'bad');
+      } finally {
+        $('save-btn').disabled = false;
+      }
+    }
+
+    async function reloadConfig() {
+      if (dirty && !confirm('Discard unsaved changes and reload from disk?')) return;
+      try {
+        const res = await fetch('/api/config/reload', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          setBanner('Reload failed: ' + esc(data.error || `HTTP ${res.status}`), 'bad');
+          return;
+        }
+        META = data;
+        CFG = data.config || {};
+        markDirty(false);
+        renderAll();
+        updateStatus();
+        setBanner('Reloaded from disk.', 'good');
+      } catch (error) {
+        setBanner('Reload failed: ' + esc(error.message), 'bad');
+      }
+    }
+
+    async function updateStatus() {
       try {
         const res = await fetch('/api/status', { cache: 'no-store' });
         const s = await res.json();
-        $('status-pill').textContent = s.ok ? 'ready' : 'configuration error';
+        $('status-pill').textContent = s.ok ? 'ready' : 'config error';
         $('status-pill').className = 'pill ' + (s.ok ? 'ok' : 'bad');
         $('gateway').textContent = `${s.gateway.host}:${s.gateway.port}`;
         $('model-count').textContent = s.models.length;
-        $('native').textContent = s.routing?.nativePassthrough ? 'enabled' : 'disabled';
-        $('native').className = 'value ' + (s.routing?.nativePassthrough ? 'ok' : 'warn');
+        $('native').textContent = s.routing && s.routing.nativePassthrough ? 'enabled' : 'disabled';
+        $('native').className = 'value ' + (s.routing && s.routing.nativePassthrough ? 'ok' : 'warn');
         $('uptime').textContent = fmtUptime(s.uptimeMs || 0);
-        $('config-path').textContent = s.configPath;
-        $('config-status').textContent = s.configLoaded ? 'loaded' : (s.configError || 'not loaded');
-        $('config-status').className = s.configLoaded ? 'ok' : 'bad';
-        $('warnings').innerHTML = (s.warnings || []).map((w) => `<li>${esc(w)}</li>`).join('') || '<li class="muted">none</li>';
-        $('models').innerHTML = (s.models || []).map((m) => `<tr>
-          <td><strong>${esc(m.displayName)}</strong></td>
-          <td class="mono">${esc(m.cursorId)}</td>
-          <td>${esc(m.providerLabel)}</td>
-          <td class="mono">${esc(m.model)}</td>
-          <td>${m.effort ? esc(m.effort.default) : '<span class="muted">—</span>'}</td>
-          <td>${m.contextOptions?.length ? esc(m.contextOptions.map((c) => c.label).join(', ')) : '<span class="muted">—</span>'}</td>
-          <td>${m.fast ? 'yes' : 'no'}</td>
-        </tr>`).join('') || '<tr><td colspan="7" class="muted">No AnyCursor models configured.</td></tr>';
-        $('providers').innerHTML = Object.entries(s.providers || {}).map(([name, p]) => `<tr>
-          <td>${esc(name)}</td><td>${esc(p.type)}</td><td class="mono">${esc(p.baseUrl || '—')}</td>
-          <td>${p.configured ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'}</td>
-        </tr>`).join('') || '<tr><td colspan="4" class="muted">No providers configured.</td></tr>';
-      } catch (e) {
+      } catch (_) {
         $('status-pill').textContent = 'offline';
         $('status-pill').className = 'pill bad';
-        $('config-status').textContent = String(e);
       }
     }
-    refresh();
-    setInterval(refresh, 5000);
+
+    window.addEventListener('beforeunload', (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+
+    loadConfig();
+    setInterval(updateStatus, 5000);
   </script>
 </body>
 </html>
