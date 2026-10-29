@@ -25,6 +25,7 @@ Working now:
 - localhost health endpoint and web dashboard
 - settings UI for providers/models with validation, backups and hot reload
 - Windows installer: packaged extension, login pre-warm task, shortcut repair
+- cross-workspace history browser and copy/move importer
 - Cursor extension skeleton that starts/supervises the gateway on activation
 
 Current provider adapters:
@@ -40,7 +41,6 @@ Next:
 - Bedrock streaming (ConverseStream)
 - native model picker verification for effort/context/fast
 - native/BYOK route-switch tests
-- history import/browser across workspaces
 
 ## Run the gateway
 
@@ -192,6 +192,27 @@ name:
 
 Cursor sees `anycursor/opencode/deepseek-v4.1-flash`; the provider receives
 `deepseek-v4.1-flash`; the picker shows `DeepSeek V4.1 Flash`.
+
+## Move chats between workspaces
+
+Cursor stores chats globally but lists them per workspace. The dashboard's
+**History** tab shows every non-empty conversation and can copy one into
+another workspace while keeping the original.
+
+CLI equivalents:
+
+```powershell
+npm run history -- --list-workspaces
+npm run history -- --list --workspace vidzen
+npm run history -- --latest 3 --workspace vidzen --to anycursor
+npm run history -- --id <composerId> --to anycursor --move
+```
+
+Copy is the default. `--move` changes the existing conversation's workspace
+instead of duplicating it. Quit Cursor before importing; the script refuses to
+write while Cursor is running unless you pass `--force`. Every run writes a
+`state.vscdb.anycursor-history-<timestamp>.bak` backup next to the Cursor
+database first.
 
 ## Development
 

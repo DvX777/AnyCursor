@@ -11,6 +11,7 @@
     "start": "node src/gateway/index.js",
     "gateway": "node src/gateway/index.js",
     "discover": "node scripts/discover-models.js",
+    "history": "node scripts/import-history.js",
     "package:extension": "node scripts/stage-extension.js && cd extension && npx --yes @vscode/vsce package --no-dependencies",
     "install:windows": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
     "repair:shortcuts": "powershell -ExecutionPolicy Bypass -File scripts/repair-shortcuts.ps1",
