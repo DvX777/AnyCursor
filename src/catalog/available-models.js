@@ -96,13 +96,13 @@ function enumParameter(id, name, values, tooltip) {
   ]);
 }
 
-function booleanParameter(id, name, value, label, tooltip) {
-  const booleanValue = Buffer.concat([
-    ld(1, String(value)),
-    ld(2, String(label || value)),
-  ]);
-  const booleanDefinition = ld(1, booleanValue);              // BooleanParameterDefinition.values
-  const parameterType = ld(1, booleanDefinition);             // ModelParameterType.boolean_parameter
+function booleanParameter(id, name, values, tooltip) {
+  const encodedValues = values.map((value) => ld(1, Buffer.concat([
+    ld(1, String(value.value)),
+    value.label ? ld(2, String(value.label)) : Buffer.alloc(0),
+  ])));
+  const booleanDefinition = Buffer.concat(encodedValues); // BooleanParameterDefinition.values[]
+  const parameterType = ld(1, booleanDefinition);          // ModelParameterType.boolean_parameter
   return Buffer.concat([
     ld(1, String(id)),
     ld(2, String(name)),
@@ -115,7 +115,7 @@ function parameterDefinitions(model) {
   const parts = [];
   if (model.effort && model.effort.tiers.length) {
     parts.push(enumParameter(
-      'reasoning',
+      'reasoning_effort',
       'Reasoning',
       model.effort.tiers,
       'Controls how much reasoning effort the model uses.',
@@ -130,7 +130,10 @@ function parameterDefinitions(model) {
     ));
   }
   if (model.fast) {
-    parts.push(booleanParameter('fast', 'Fast', 'true', 'On', 'Use the faster variant when available.'));
+    parts.push(booleanParameter('fast', 'Fast', [
+      { value: 'false' },
+      { value: 'true', label: 'Fast' },
+    ], 'Significantly faster but consumes more usage.'));
   }
   return parts;
 }
@@ -155,18 +158,36 @@ function tooltipData(model, label) {
   ]);
 }
 
-function modelVariant(model, tier) {
-  if (!model.effort) return null;
-  const values = [parameterValue('reasoning', tier.value === undefined ? tier.id : tier.value)];
-  const displayName = `${model.displayName} ${tier.label || tier.id}`;
-  const isDefault = tier.id === model.effort.default;
+function modelVariant(model, effort, context, fast) {
+  const values = [];
+  if (context) values.push(parameterValue('context', context.id));
+  if (effort) values.push(parameterValue('reasoning_effort', effort.value === undefined ? effort.id : effort.value));
+  if (model.fast) values.push(parameterValue('fast', fast ? 'true' : 'false'));
+
+  const contexts = model.contextOptions || [];
+  const defaultContext = contexts.length ? contexts[0] : null;
+  const labelParts = [model.displayName];
+  if (context && contexts.length > 1 && context.id !== defaultContext.id) labelParts.push(context.label);
+  if (effort) labelParts.push(effort.label || effort.id);
+  if (fast) labelParts.push('Fast');
+  const displayName = labelParts.join(' ');
+  const isDefault = (!effort || effort.id === model.effort.default)
+    && (!context || !defaultContext || context.id === defaultContext.id)
+    && !fast;
+
+  const representation = `${model.cursorId}[${[
+    context ? `context=${context.id}` : '',
+    effort ? `reasoning_effort=${effort.value === undefined ? effort.id : effort.value}` : '',
+    model.fast ? `fast=${fast ? 'true' : 'false'}` : '',
+  ].filter(Boolean).join(',')}]`;
+
   return Buffer.concat([
     ld(1, Buffer.concat(values)),
     ld(2, displayName),
     ld(7, model.providerLabel || ''),
     ld(8, displayName),
     vi(5, isDefault ? 1 : 0),
-    ld(9, displayName),
+    ld(9, representation),
     ld(6, tooltipData(model, displayName)),
   ]);
 }
@@ -197,10 +218,17 @@ function encodeAvailableModel(model) {
   parts.push(ld(8, tooltipData(model)));
 
   for (const definition of parameterDefinitions(model)) parts.push(ld(29, definition));
-  if (model.effort) {
-    for (const tier of model.effort.tiers) {
-      const variant = modelVariant(model, tier);
-      if (variant) parts.push(ld(30, variant));
+
+  const contexts = model.contextOptions && model.contextOptions.length ? model.contextOptions : [null];
+  const efforts = model.effort && model.effort.tiers.length ? model.effort.tiers : [null];
+  const fasts = model.fast ? [false, true] : [false];
+  if (model.effort || (model.contextOptions && model.contextOptions.length) || model.fast) {
+    for (const context of contexts) {
+      for (const effort of efforts) {
+        for (const fast of fasts) {
+          parts.push(ld(30, modelVariant(model, effort, context, fast)));
+        }
+      }
     }
   }
   return Buffer.concat(parts);

@@ -1429,6 +1429,12 @@ function parseRunPayload(payload) {
   if (!run) return null;
 
   const requested = one(run, 9) || Buffer.alloc(0);
+  const modelParameters = {};
+  for (const f of readFields(requested)) {
+    if (f.no !== 3 || f.wire !== 2) continue;
+    const id = str(f.value, 1) || '';
+    if (id) modelParameters[id] = str(f.value, 2) || '';
+  }
   const creds = one(requested, 4) || Buffer.alloc(0);
   const convState = one(run, 1) || Buffer.alloc(0);
   const stateFields = readFields(convState);
@@ -1470,6 +1476,7 @@ function parseRunPayload(payload) {
 
   return {
     modelId: str(requested, 1) || 'unknown',
+    modelParameters,
     apiKey: str(creds, 1) || '',
     baseUrl: str(creds, 2) || '',
     userText: str(userMsg, 1) || '',

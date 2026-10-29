@@ -116,7 +116,7 @@ function thinkingBudget(effort) {
   if (id === 'low') return 1024;
   if (id === 'medium') return 4096;
   if (id === 'high') return 8192;
-  if (id === 'extra-high' || id === 'extra_high') return 12000;
+  if (id === 'extra-high' || id === 'extra_high' || id === 'xhigh') return 12000;
   if (id === 'max') return 16000;
   return 0;
 }

@@ -280,6 +280,9 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
       const usedFallbackCreds = !byokModel
         && (fallbackCreds.apiKey !== parsed.apiKey || fallbackCreds.baseUrl !== parsed.baseUrl);
       const providerAdapter = providers.getAdapter(byokModel ? byokModel.api : 'openai-compatible');
+      const selectedEffort = parsed.modelParameters
+        ? (parsed.modelParameters.reasoning_effort || parsed.modelParameters.reasoning)
+        : undefined;
       const providerOptions = byokModel
         ? {
             headers: (byokProvider && byokProvider.headers) || {},
@@ -292,7 +295,10 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
             sessionToken: (byokProvider && byokProvider.sessionToken) || '',
             maxOutput: byokModel.maxOutput,
             reasoning: byokModel.capabilities.reasoning,
-            effort: byokModel.effort ? byokModel.effort.default : undefined,
+            effort: selectedEffort || (byokModel.effort ? byokModel.effort.default : undefined),
+            reasoningEffortField: (byokModel.effort && byokModel.effort.requestField) || 'reasoning_effort',
+            context: parsed.modelParameters ? parsed.modelParameters.context : undefined,
+            fast: parsed.modelParameters ? parsed.modelParameters.fast === 'true' : false,
             baseOverride: byokModel.api === 'openai-compatible' ? (PROVIDER_BASE || undefined) : undefined,
           }
         : {};

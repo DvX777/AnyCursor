@@ -52,7 +52,7 @@ test('encodes model display name, real model id, effort and capabilities', () =>
   assert.equal(num(fields, 15), 200000);
   assert.equal(num(fields, 16), 1000000);
   assert.equal(fields.filter((f) => f.no === 29).length, 2);
-  assert.equal(fields.filter((f) => f.no === 30).length, 3);
+  assert.equal(fields.filter((f) => f.no === 30).length, 6);
 });
 
 test('appends models without changing native response bytes', () => {
@@ -101,7 +101,7 @@ test('encodes parameter and variant values without extra nesting', () => {
 
   const reasoning = fields.filter((f) => f.no === 29)[0].value;
   const reasoningFields = readFields(reasoning);
-  assert.equal(text(reasoningFields, 1), 'reasoning');
+  assert.equal(text(reasoningFields, 1), 'reasoning_effort');
   const parameterType = one(reasoningFields, 4);
   const enumDefinition = one(readFields(parameterType), 2);
   const firstValue = readFields(enumDefinition).find((f) => f.no === 1).value;
@@ -111,8 +111,8 @@ test('encodes parameter and variant values without extra nesting', () => {
   const variant = fields.filter((f) => f.no === 30)[0].value;
   const parameterValues = readFields(variant).filter((f) => f.no === 1);
   assert.equal(parameterValues.length, 1);
-  assert.equal(text(readFields(parameterValues[0].value), 1), 'reasoning');
-  assert.equal(text(readFields(parameterValues[0].value), 2), 'low');
+  assert.equal(text(readFields(parameterValues[0].value), 1), 'context');
+  assert.equal(text(readFields(parameterValues[0].value), 2), '272k');
 });
 
 test('omits unsupported parameter definitions', () => {
