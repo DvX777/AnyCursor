@@ -8,15 +8,25 @@
   "engines": {
     "vscode": "^1.80.0"
   },
-  "categories": ["Other"],
-  "extensionKind": ["workspace"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./src/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "anycursor.openSettings",
         "title": "AnyCursor: Open Settings"
+      },
+      {
+        "command": "anycursor.openConfigFile",
+        "title": "AnyCursor: Open Configuration File"
       },
       {
         "command": "anycursor.doctor",
@@ -34,5 +44,13 @@
   },
   "scripts": {
     "package": "vsce package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DvX777/Anycursor.git"
+  },
+  "homepage": "https://github.com/DvX777/Anycursor",
+  "bugs": {
+    "url": "https://github.com/DvX777/Anycursor/issues"
   }
 }

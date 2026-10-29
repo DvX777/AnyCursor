@@ -26,8 +26,26 @@ const { transformCatalog } = require('../catalog/response');
 const { selectedModelIds } = require('../cursor/state');
 const providers = require('../providers');
 
-const CONFIG_PATH = process.env.ANY_CURSOR_CONFIG
-  || path.join(__dirname, '..', '..', 'config', 'anycursor.json');
+const argv = process.argv.slice(2);
+function arg(name, fallback) {
+  const i = argv.indexOf('--' + name);
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
+}
+
+function defaultConfigPath() {
+  const local = path.join(
+    process.env.LOCALAPPDATA || process.env.USERPROFILE || '',
+    'AnyCursor',
+    'config.json',
+  );
+  const repo = path.join(__dirname, '..', '..', 'config', 'anycursor.json');
+  if (fs.existsSync(repo)) return repo;
+  return local;
+}
+
+const CONFIG_PATH = path.resolve(
+  arg('config', process.env.ANY_CURSOR_CONFIG || defaultConfigPath()),
+);
 const configService = new ConfigService(CONFIG_PATH);
 let registry = configService.config ? buildRegistry(configService.config) : null;
 const initialConfig = configService.config;
@@ -71,12 +89,6 @@ function watchConfig() {
     // fs.watch is unavailable on some network shares; poll instead.
     fs.watchFile(CONFIG_PATH, { interval: 2000 }, reload);
   }
-}
-
-const argv = process.argv.slice(2);
-function arg(name, fallback) {
-  const i = argv.indexOf('--' + name);
-  return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 }
 
 const CONFIG_PORT = initialConfig && initialConfig.gateway ? initialConfig.gateway.port : undefined;

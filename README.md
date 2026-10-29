@@ -24,6 +24,7 @@ Working now:
   fast metadata
 - localhost health endpoint and web dashboard
 - settings UI for providers/models with validation, backups and hot reload
+- Windows installer: packaged extension, login pre-warm task, shortcut repair
 - Cursor extension skeleton that starts/supervises the gateway on activation
 
 Current provider adapters:
@@ -38,8 +39,8 @@ Next:
 
 - Bedrock streaming (ConverseStream)
 - native model picker verification for effort/context/fast
-- shortcut repair and pre-warmed gateway service
 - native/BYOK route-switch tests
+- history import/browser across workspaces
 
 ## Run the gateway
 
@@ -75,6 +76,53 @@ POST /api/config/reload   reload the file from disk
 
 Host, port, upstream and data-directory changes are reported as requiring a
 gateway restart; everything else applies live.
+
+## Install on Windows
+
+```powershell
+cd C:\Project\AnyCursor
+npm run install:windows
+```
+
+The installer:
+
+1. creates `%LOCALAPPDATA%\AnyCursor\config.json` if it does not exist
+2. stages the gateway inside the extension and packages a VSIX
+3. installs the extension with the Cursor CLI
+4. registers a `AnyCursor Gateway` login task that pre-warms the gateway
+5. updates Desktop, Start Menu and Taskbar Cursor shortcuts to add
+   `--test-backend-url http://127.0.0.1:<port>`
+6. waits for the gateway health endpoint
+
+Shortcut backups are written next to each shortcut as `*.lnk.anycursor.bak`.
+Options: `-SkipPackage`, `-SkipExtension`, `-SkipTask`, `-SkipShortcuts`,
+`-Port`, `-Config`, `-TaskName`.
+
+In Cursor, use the command palette:
+
+```text
+AnyCursor: Open Settings
+AnyCursor: Open Configuration File
+AnyCursor: Doctor
+AnyCursor: Repair Cursor Shortcuts
+AnyCursor: Start Gateway
+```
+
+Uninstall:
+
+```powershell
+npm run uninstall:windows
+```
+
+This removes the login task, restores shortcuts and uninstalls the extension.
+Your config and logs stay in `%LOCALAPPDATA%\AnyCursor` unless you pass
+`-RemoveData`.
+
+Run the gateway manually with a specific config:
+
+```powershell
+node src\gateway\index.js --config C:\path\to\anycursor.json
+```
 
 ## Verify the native picker (development)
 

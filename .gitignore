@@ -11,6 +11,7 @@ bodies/
 config/anycursor.json
 config/secrets.json
 *.vsix
+extension/vendor/
 .DS_Store
 Thumbs.db
 data/

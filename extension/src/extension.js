@@ -4,7 +4,7 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 const DEFAULT_CONFIG = path.join(
   process.env.LOCALAPPDATA || process.env.USERPROFILE || '',
@@ -29,7 +29,7 @@ function configPath() {
 function readConfig() {
   const file = configPath();
   try {
-    return { file, config: JSON.parse(fs.readFileSync(file, 'utf8')) };
+    return { file, config: JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) };
   } catch (error) {
     return { file, config: null, error: String(error && error.message ? error.message : error) };
   }
@@ -53,16 +53,17 @@ function health(host, port, timeoutMs = 1200) {
 
 function gatewayPath() {
   if (process.env.ANY_CURSOR_GATEWAY) return process.env.ANY_CURSOR_GATEWAY;
+  const packaged = path.join(__dirname, '..', 'vendor', 'anycursor', 'src', 'gateway', 'index.js');
+  if (fs.existsSync(packaged)) return packaged;
   return path.join(__dirname, '..', '..', 'src', 'gateway', 'index.js');
 }
 
 function startGateway(config) {
   const node = process.env.ANY_CURSOR_NODE || 'node';
   const script = gatewayPath();
-  const cwd = path.dirname(script);
+  const cwd = path.join(path.dirname(script), '..', '..');
   const env = { ...process.env };
-  if (config) env.ANY_CURSOR_CONFIG = configPath();
-  const child = spawn(node, [script], {
+  const child = spawn(node, [script, '--config', configPath()], {
     cwd,
     env,
     detached: true,
@@ -127,9 +128,16 @@ async function openSettings() {
     vscode.window.showErrorMessage(`AnyCursor is not ready: ${result.reason || 'unknown error'}`);
     return;
   }
-  const config = readConfig().config;
-  const backend = (config.cursor && config.cursor.backendUrl) || `http://${result.host}:${result.port}`;
-  vscode.env.openExternal(vscode.Uri.parse(backend));
+  vscode.env.openExternal(vscode.Uri.parse(`http://${result.host}:${result.port}/`));
+}
+
+async function openConfigFile() {
+  const { file, error } = readConfig();
+  if (!fs.existsSync(file)) {
+    vscode.window.showErrorMessage(`AnyCursor config not found: ${file}${error ? ` (${error})` : ''}`);
+    return;
+  }
+  await vscode.window.showTextDocument(vscode.Uri.file(file), { preview: false });
 }
 
 async function doctor() {
@@ -139,6 +147,7 @@ async function doctor() {
     `Config: ${file}`,
     `Config loaded: ${config ? 'yes' : 'no'}`,
     error ? `Config error: ${error}` : '',
+    `Gateway script: ${gatewayPath()}`,
     `Gateway: ${result.ok ? 'ready' : (result.reason || 'offline')}`,
     result.health ? `Models: ${result.health.models ? result.health.models.length : 0}` : '',
     result.health && result.health.warnings && result.health.warnings.length
@@ -149,8 +158,24 @@ async function doctor() {
 }
 
 function repairShortcuts() {
-  vscode.window.showInformationMessage(
-    'Shortcut repair is not wired yet. It will update the Desktop, Start Menu and Taskbar Cursor shortcuts with the AnyCursor backend flag.',
+  const script = path.join(path.dirname(gatewayPath()), '..', '..', 'scripts', 'repair-shortcuts.ps1');
+  if (!fs.existsSync(script)) {
+    vscode.window.showErrorMessage(`Shortcut repair script not found: ${script}`);
+    return;
+  }
+  const { file, config } = readConfig();
+  const port = String((config && config.gateway && config.gateway.port) || 43110);
+  execFile(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Port', port, '-Config', file],
+    { windowsHide: true, timeout: 120000 },
+    (error, stdout, stderr) => {
+      if (error) {
+        vscode.window.showErrorMessage(`Shortcut repair failed: ${stderr || error.message}`);
+        return;
+      }
+      vscode.window.showInformationMessage(stdout.trim() || 'Cursor shortcuts updated.');
+    },
   );
 }
 
@@ -161,6 +186,7 @@ function activate(context) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('anycursor.openSettings', openSettings),
+    vscode.commands.registerCommand('anycursor.openConfigFile', openConfigFile),
     vscode.commands.registerCommand('anycursor.doctor', doctor),
     vscode.commands.registerCommand('anycursor.startGateway', () => ensureGateway(true)),
     vscode.commands.registerCommand('anycursor.repairShortcuts', repairShortcuts),
