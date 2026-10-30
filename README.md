@@ -1,6 +1,9 @@
 <div align="center">
 
-# AnyCursor
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/anycursor-logo.png">
+  <img alt="AnyCursor" src="assets/anycursor-logo-light.png" width="460">
+</picture>
 
 **Use your own models inside Cursor — with Cursor's native Agent, tools, MCP, subagents and approvals.**
 
@@ -255,6 +258,7 @@ node src\gateway\index.js --config C:\path\to\anycursor.json
 
 ```text
 AnyCursor/
+|-- assets/          logo artwork
 |-- extension/       Cursor extension: supervision, settings, lifecycle
 |-- public/          Local dashboard and settings UI
 |-- src/
