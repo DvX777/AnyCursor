@@ -406,34 +406,15 @@ function heartbeatFrame() {
   return serverMessage(1, vi(1, 0));
 }
 
-function agentModeConfig(modeId, askQuestion, targets) {
-  return Buffer.concat([
-    ld(1, Buffer.from(modeId)),
-    askQuestion ? vi(2, 1) : Buffer.alloc(0),
-    ld(3, Buffer.concat((targets || []).map((target) => ld(1, Buffer.from(target))))),
-  ]);
-}
-
 function runReadyFrame(model, requested, effort) {
   const resolved = Buffer.concat([
     ld(1, Buffer.from(model.cursorId)),
     requested && requested.maxMode ? vi(2, 1) : Buffer.alloc(0),
   ]);
-  const modeConfigs = [
-    agentModeConfig('agent', true, ['plan', 'debug', 'chat']),
-    agentModeConfig('chat', false, ['agent', 'plan', 'debug']),
-    agentModeConfig('plan', true, ['agent', 'debug', 'chat']),
-    agentModeConfig('debug', true, ['agent', 'plan', 'chat']),
-  ];
   const promptMetadata = Buffer.concat([
     ld(1, Buffer.from('openai')),
     ld(2, Buffer.from('latest')),
     effort ? ld(30, Buffer.from(String(effort))) : Buffer.alloc(0),
-    ...modeConfigs.map((config) => ld(46, config)),
-    ld(48, Buffer.concat([
-      ld(1, Buffer.from('ask_question')),
-      vi(2, 0),
-    ])),
   ]);
   const ready = Buffer.concat([
     ld(1, resolved),
