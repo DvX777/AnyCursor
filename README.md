@@ -1,127 +1,230 @@
+<div align="center">
+
 # AnyCursor
 
-AnyCursor is an open-source local model gateway for Cursor.
+**Use your own models inside Cursor — with Cursor's native Agent, tools, MCP, subagents and approvals.**
 
-It keeps Cursor's native UI, modes, tools, MCP, subagents and approvals, while
-letting you use:
+_Your keys. Your models. Cursor's native experience. No second app to open._
 
-- Cursor's own models through Cursor's backend
-- your own models through your own API keys, endpoints and providers
-- both in the same Cursor install, switchable from the native model picker
+<p>
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white">
+  <img alt="Cursor" src="https://img.shields.io/badge/Cursor-3.x-000000?style=for-the-badge">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge">
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-55%20passing-brightgreen?style=for-the-badge">
+</p>
+<p>
+  <img alt="BYOK" src="https://img.shields.io/badge/BYOK-OpenAI%20%7C%20Anthropic%20%7C%20Google%20%7C%20Azure%20%7C%20Bedrock-blue?style=for-the-badge">
+  <img alt="Private" src="https://img.shields.io/badge/Privacy-100%25%20local-success?style=for-the-badge">
+  <img alt="No launcher" src="https://img.shields.io/badge/Launcher-None-orange?style=for-the-badge">
+</p>
 
-## Status
+[Features](#features) · [Quick Start](#quick-start) · [Providers](#supported-providers) · [Architecture](#architecture) · [Configuration](#configuration) · [Development](#development)
 
-Early development. Windows-only for the first release.
+</div>
 
-Working now:
+---
 
-- config loader with provider/model validation and namespaced model IDs
-- model registry with native/BYOK routing
-- Cursor local history reader (`composerHeaders`, `cursorDiskKV`, transcripts)
-- gateway skeleton with h1/h2c forwarding, BYOK live-turn handling, and raw
-  native passthrough routing
-- append-only `AvailableModels` merge with display names, effort, context and
-  fast metadata
-- Cursor 3.x Agent Host local-loop support (`InferenceService/RunInference`),
-  tested with Agent, Ask, Plan and Debug modes, the Agents Window, text,
-  thinking, tools, native approvals, MCP, images and explore subagents
-- localhost health endpoint and web dashboard
-- settings UI for providers/models with validation, backups and hot reload
-- Windows installer: packaged extension, login pre-warm task, shortcut repair
-- cross-workspace history browser and copy/move importer
-- Cursor extension skeleton that starts/supervises the gateway on activation
+AnyCursor is a local model gateway and Cursor extension that lets you run **your own API keys and models** through Cursor's normal Agent/Edit experience. Cursor keeps its native UI, tools, MCP servers, subagents, approvals and history. AnyCursor handles the model transport locally.
 
-Current provider adapters:
+It is built for people who want their own models in Cursor without opening a second app, changing their workflow, or giving up native Cursor features.
 
-- OpenAI-compatible: streaming text/thinking, tools, vision
-- Anthropic Messages: streaming text/thinking, tool use/results
-- Google Gemini: streaming text/thinking, function calls
-- Azure OpenAI: OpenAI chat-completions path with deployment/api-version
-- AWS Bedrock: Converse with SigV4 (non-streaming first version)
+## Features
 
-Next:
+| Capability | Status |
+| --- | --- |
+| Native Cursor models | Raw passthrough, untouched |
+| BYOK OpenAI-compatible models | Streaming text, thinking, tools, vision |
+| Anthropic Messages | Streaming text, thinking, tool use/results |
+| Google Gemini | Streaming text, thinking, function calls |
+| Azure OpenAI | Deployment and API-version aware |
+| AWS Bedrock | Converse + ConverseStream with SigV4 |
+| Agent / Ask / Plan / Debug modes | Verified through the Agent Host local loop |
+| Agents Window | Verified, including background-composer picker |
+| Native tools, shell, edits | Verified, with native approvals |
+| MCP tools | Verified end-to-end |
+| Image attachments | Verified |
+| Subagents | Verified, including explore and approvals |
+| Effort / context / fast controls | Native model-picker metadata |
+| Secrets | Windows Credential Manager |
+| Runtime | Local-only gateway, configuration-driven |
 
-- Bedrock streaming (ConverseStream)
-- native/BYOK route-switch tests after Cursor quota resets
-- optional subagent latency tuning (lower effort / faster subagent model)
-- secret hardening with Windows Credential Manager
+> **No launcher. No visible app. Open Cursor normally.** The gateway is pre-warmed at login and supervised by the Cursor extension.
 
-## Run the gateway
+## Quick Start
 
-```powershell
-cd C:\Project\AnyCursor
-Copy-Item config\anycursor.example.json config\anycursor.json
-npm start
-```
+### Requirements
 
-Open `http://127.0.0.1:43110/` for the dashboard and `/health` for diagnostics.
+- Windows 10 or 11
+- Cursor 3.x
+- Node.js 22+ with `node:sqlite`
+- Your own provider API key or endpoint
 
-The example config uses environment references for keys. Missing keys are
-reported as warnings and can be filled in later.
-
-## Configure without editing JSON
-
-The dashboard at `http://127.0.0.1:<port>/` has tabs for providers, models,
-gateway/routing and raw JSON. **Save changes** validates the config, writes a
-timestamped `.bak` backup, and applies it to new requests without restarting
-the gateway. External edits to the config file are picked up automatically.
-
-Stored secrets are never sent to the browser: they are replaced with empty
-strings and a `has…` flag. Leaving a key field empty keeps the saved value;
-use the clear checkbox to remove it.
-
-Config API:
-
-```text
-GET  /api/config          redacted config + warnings + restart-required fields
-POST /api/config          {"config": {...}} validate, back up, save, apply
-POST /api/config/reload   reload the file from disk
-```
-
-Host, port, upstream and data-directory changes are reported as requiring a
-gateway restart; everything else applies live.
-
-## Install on Windows
+### Install
 
 ```powershell
-cd C:\Project\AnyCursor
-npm run install:windows          # per-user, no admin: Startup shortcut fallback
-npm run install:windows:admin    # one UAC prompt: registers a login task
+git clone https://github.com/DvX777/Anycursor.git
+cd Anycursor
+npm run install:windows
 ```
 
-The admin variant only elevates the login-task registration; the gateway still
-runs as your normal user. If the UAC prompt is cancelled, the installer falls
-back to the Startup shortcut.
+Then open Cursor normally — from the Desktop, Start Menu or Taskbar shortcut.
 
 The installer:
 
-1. creates `%LOCALAPPDATA%\AnyCursor\config.json` if it does not exist
-2. stages the gateway inside the extension and packages a VSIX
+1. seeds `%LOCALAPPDATA%\AnyCursor\config.json`
+2. stages the gateway inside the extension and builds a VSIX
 3. installs the extension with the Cursor CLI
-4. registers a `AnyCursor Gateway` login task when permitted, or builds a
-   hidden `AnyCursor Gateway.exe` helper and adds an `AnyCursor Gateway`
-   Startup shortcut when Windows policy blocks tasks
-5. updates Desktop, Start Menu and Taskbar Cursor shortcuts to add
-   `--test-backend-url http://127.0.0.1:<port>`
+4. registers a login pre-warm task, or falls back to a hidden Startup entry
+5. patches Cursor shortcuts with the local backend flag
 6. waits for the gateway health endpoint
 
-Shortcut backups are written under
-`%LOCALAPPDATA%\AnyCursor\backups\shortcuts`, not next to the shortcuts.
-When task registration is denied, the installer builds a hidden
-`%LOCALAPPDATA%\AnyCursor\AnyCursor Gateway.exe` helper, adds an `AnyCursor
-Gateway` Startup shortcut, and uses it to pre-warm the gateway hidden. Task
-Manager shows `AnyCursor Gateway.exe`, not `wscript.exe`. Both are removed by
-the uninstaller.
+Admin variant, one UAC prompt:
 
-`AnyCursor Gateway.exe` is not an app users open. It has no window, only
-ensures the gateway is running, and exits. If it is missing or disabled, the
-Cursor extension starts the gateway when Cursor starts. **Users always open
-Cursor normally.**
+```powershell
+npm run install:windows:admin
+```
 
-Options: `-SkipPackage`, `-SkipExtension`, `-SkipTask`, `-SkipShortcuts`,
-`-RequestAdmin`, `-Port`, `-Config`, `-TaskName`.
+If task registration is blocked by policy, the installer uses a hidden `AnyCursor Gateway.exe` prewarm helper. Users never launch it; it has no window and exits after ensuring the gateway is running.
 
-In Cursor, use the command palette:
+### Configure
+
+Open:
+
+```text
+http://127.0.0.1:43110/
+```
+
+Add a provider, add a model, choose its display name and effort/context options, then **Save changes**. Changes apply to new requests without restarting the gateway.
+
+## Supported Providers
+
+| Provider | Type | Transport |
+| --- | --- | --- |
+| OpenAI-compatible | `openai-compatible` | Chat completions streaming, tools, vision |
+| Anthropic | `anthropic` | Messages streaming, thinking, tool use |
+| Google Gemini | `google` | `streamGenerateContent`, function calls |
+| Azure OpenAI | `azure-openai` | Deployment URL + API version |
+| AWS Bedrock | `bedrock` | Converse / ConverseStream, SigV4 |
+| Any custom endpoint | `openai-compatible` | Base URL, endpoint path and headers |
+
+The provider layer is configuration-driven. Nothing about URLs, ports, model names or display names is hardcoded.
+
+## Architecture
+
+```text
+┌───────────────────────────────┐
+│           Cursor UI           │
+│  Agent · Edit · Ask · Plan    │
+│  Tools · MCP · Subagents      │
+└──────────────┬────────────────┘
+               │ Cursor backend protocol
+┌──────────────▼────────────────┐
+│        AnyCursor Gateway      │
+│  local h1/h2c · 127.0.0.1     │
+│                               │
+│  • AvailableModels merge      │
+│  • BYOK routing               │
+│  • RunInference local loop    │
+│  • native passthrough         │
+│  • config + settings API      │
+└──────────────┬────────────────┘
+               │ streaming provider APIs
+┌──────────────▼────────────────┐
+│  OpenAI · Anthropic · Google  │
+│  Azure · Bedrock · Custom     │
+└───────────────────────────────┘
+```
+
+Cursor's own models are forwarded byte-for-byte to Cursor's backend. BYOK models are intercepted locally and sent to the configured provider.
+
+With Cursor 3.x, Agent Host turns arrive as `InferenceService/RunInference` streams. AnyCursor answers `run_ready`, converts messages/tools, streams text and thinking deltas, returns tool calls, and ends each invocation. Native approvals and the agent loop remain Cursor's.
+
+## Configuration
+
+See [`config/anycursor.example.json`](config/anycursor.example.json).
+
+A model has a stable AnyCursor ID, a Cursor-facing ID, the real provider model ID, and a display name:
+
+```json
+{
+  "id": "deepseek-v4.1-flash",
+  "cursorId": "claude-anycursor-deepseek-v4.1-flash",
+  "displayName": "DeepSeek V4.1 Flash",
+  "provider": "opencode",
+  "model": "deepseek-v4.1-flash"
+}
+```
+
+- Cursor sees `cursorId`
+- the provider receives `model`
+- the picker shows `displayName`
+
+### Cursor 3.x Agent Host IDs
+
+Cursor routes model IDs it classifies as BYOK back to its own backend. AnyCursor avoids that by generating non-BYOK Cursor IDs with a configurable prefix:
+
+```json
+"cursor": {
+  "modelIdPrefix": "claude-anycursor"
+}
+```
+
+That produces IDs such as:
+
+```text
+claude-anycursor-opencode-deepseek-v4.1-flash
+```
+
+Use an explicit `cursorId` to override the generated value. The prefix is configurable because Cursor's classification depends on which built-in API-key toggles are enabled.
+
+### Secret Storage
+
+On Windows, API keys and AWS secrets are stored in **Windows Credential Manager**:
+
+```text
+AnyCursor/provider/<name>/apiKey
+AnyCursor/provider/<name>/secretAccessKey
+AnyCursor/model/<model>/apiKey
+```
+
+The config file keeps references only:
+
+```json
+"apiKeyRef": "AnyCursor/provider/opencode/apiKey"
+```
+
+Environment references such as `${OPENCODE_API_KEY}` remain supported and are not copied into the credential store. Clearing a key in the dashboard deletes its credential-manager entry.
+
+### Dashboard and API
+
+```text
+GET  /api/status          gateway, config, providers, active models
+GET  /api/models          effective model list
+GET  /api/config          redacted config + warnings + restart requirements
+POST /api/config          validate, back up, save, apply live
+POST /api/config/reload   reload the file from disk
+GET  /health              health endpoint
+```
+
+Host, port, upstream and data-directory changes require a gateway restart. Model, provider and routing changes apply live.
+
+## Windows Lifecycle
+
+```powershell
+npm run install:windows
+npm run install:windows:admin
+npm run uninstall:windows
+```
+
+Uninstall removes the extension, login/Startup prewarm, and the shortcut flag. Your config and logs stay in `%LOCALAPPDATA%\AnyCursor` unless you pass `-RemoveData`.
+
+Shortcut backups live in:
+
+```text
+%LOCALAPPDATA%\AnyCursor\backups\shortcuts
+```
+
+Cursor command palette:
 
 ```text
 AnyCursor: Open Settings
@@ -131,148 +234,9 @@ AnyCursor: Repair Cursor Shortcuts
 AnyCursor: Start Gateway
 ```
 
-Uninstall:
-
-```powershell
-npm run uninstall:windows
-```
-
-This removes the login task, restores shortcuts and uninstalls the extension.
-Your config and logs stay in `%LOCALAPPDATA%\AnyCursor` unless you pass
-`-RemoveData`.
-
-Run the gateway manually with a specific config:
-
-```powershell
-node src\gateway\index.js --config C:\path\to\anycursor.json
-```
-
 ### About `--test-backend-url`
 
-This is Cursor's own internal switch for pointing the desktop app at another
-backend; Cursor exposes no public alternative. It is not a leftover test value.
-AnyCursor keeps Cursor shortcuts pointed at `Cursor.exe` with that flag instead
-of routing the user through a separate app. The only extra executable is the
-hidden gateway prewarm helper described above; users never launch it.
-
-## Verify the native picker (development)
-
-This test uses port `43111` and never kills Cursor or touches shortcuts:
-
-```powershell
-cd C:\Project\AnyCursor
-powershell -ExecutionPolicy Bypass -File .\scripts\verify-native-picker.ps1
-```
-
-If Cursor is already running, the script starts the gateway only and prints the
-command to launch Cursor with `--test-backend-url http://127.0.0.1:43111`.
-Fully quit Cursor first, then run the printed command.
-
-Check in Cursor:
-
-- AnyCursor models appear beside native Cursor models
-- display name is friendly, not the raw model ID
-- effort/context/fast controls match the model capabilities
-- selecting a native Cursor model still works
-- selecting an AnyCursor model routes to the configured provider
-
-Stop the test gateway with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\stop-gateway.ps1 -Port 43111
-```
-
-## Principles
-
-- No launcher and no visible app. Open Cursor normally.
-- The gateway is pre-warmed at login and supervised by the Cursor extension.
-- Native Cursor models keep Cursor's billing, plan, usage, tools and history.
-- BYOK models are namespaced and routed locally.
-- Nothing is hardcoded: provider, endpoint, key, model and display name are
-  configuration.
-- Local-only by default. Keys live in the OS keychain or environment.
-
-## Planned architecture
-
-```text
-AnyCursor/
-├─ extension/       Cursor extension: settings, health, lifecycle, shortcuts
-├─ gateway/         local h1/h2c gateway + localhost web UI
-├─ providers/       OpenAI, Anthropic, Google, Azure, Bedrock, local
-├─ catalog/         AvailableModels merge, model metadata, effort/context
-├─ history/         Cursor local conversation import and canonical history
-├─ tools/           native tools, MCP, subagents
-└─ config/          schema, secrets, migrations, presets
-```
-
-## Configuration
-
-See [`config/anycursor.example.json`](config/anycursor.example.json).
-
-Models have a stable AnyCursor ID, a provider model ID and a separate display
-name:
-
-```json
-{
-  "id": "deepseek-v4.1-flash",
-  "displayName": "DeepSeek V4.1 Flash",
-  "provider": "opencode",
-  "model": "deepseek-v4.1-flash"
-}
-```
-
-Cursor sees `anycursor/opencode/deepseek-v4.1-flash`; the provider receives
-`deepseek-v4.1-flash`; the picker shows `DeepSeek V4.1 Flash`.
-
-### Cursor 3.x Agent Host IDs
-
-With Cursor's Agent Host local loop, a model ID that Cursor classifies as a
-native BYOK model is routed back to Cursor's backend and can hit subscription
-gating. Give the model an explicit non-BYOK Cursor ID:
-
-```json
-"cursorId": "claude-anycursor-deepseek-v4.1-flash"
-```
-
-AnyCursor answers Cursor's `InferenceService/RunInference` stream itself, so the
-provider key still comes from your config. If you later enable Cursor's own
-Claude key, use a different prefix (for example `gemini-anycursor-...`) or
-disable that Cursor key toggle.
-
-### Secret storage
-
-On Windows, API keys and AWS secrets are stored in **Windows Credential
-Manager** under `AnyCursor/...`. The config file keeps only references such as:
-
-```json
-"apiKeyRef": "AnyCursor/provider/opencode/apiKey"
-```
-
-Existing plaintext keys are moved into Credential Manager the next time the
-config is saved. Environment references like `${OPENCODE_API_KEY}` remain
-supported and are not copied into the credential store. Clearing a key in the
-dashboard deletes its Credential Manager entry.
-
-## Move chats between workspaces
-
-Cursor stores chats globally but lists them per workspace. The dashboard's
-**History** tab shows every non-empty conversation and can copy one into
-another workspace while keeping the original.
-
-CLI equivalents:
-
-```powershell
-npm run history -- --list-workspaces
-npm run history -- --list --workspace vidzen
-npm run history -- --latest 3 --workspace vidzen --to anycursor
-npm run history -- --id <composerId> --to anycursor --move
-```
-
-Copy is the default. `--move` changes the existing conversation's workspace
-instead of duplicating it. Quit Cursor before importing; the script refuses to
-write while Cursor is running unless you pass `--force`. Every run writes a
-`state.vscdb.anycursor-history-<timestamp>.bak` backup next to the Cursor
-database first.
+This is Cursor's own internal switch for pointing the desktop app at another backend. Cursor exposes no public alternative. AnyCursor keeps shortcuts pointed at `Cursor.exe` with this flag instead of routing users through a separate launcher.
 
 ## Development
 
@@ -281,8 +245,78 @@ cd C:\Project\AnyCursor
 npm test
 ```
 
-No dependencies are required yet.
+Run the gateway manually:
+
+```powershell
+node src\gateway\index.js --config C:\path\to\anycursor.json
+```
+
+Verify the native picker on a test port:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-native-picker.ps1
+```
+
+Stop the test gateway:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-gateway.ps1 -Port 43111
+```
+
+### Project Layout
+
+```text
+AnyCursor/
+├─ extension/       Cursor extension: supervision, settings, lifecycle
+├─ public/          Local dashboard and settings UI
+├─ src/
+│  ├─ gateway/      h1/h2c gateway, RunInference, live turns
+│  ├─ providers/    OpenAI, Anthropic, Google, Azure, Bedrock
+│  ├─ catalog/      AvailableModels merge, model metadata
+│  ├─ config/       validation, hot reload, credential storage
+│  ├─ cursor/       Cursor state and model IDs
+│  └─ history/      optional local history tools
+├─ scripts/         installer, shortcuts, migrations, diagnostics
+└─ schema/          configuration schema
+```
+
+## Troubleshooting
+
+### Cursor says "Cursor Subscription Required"
+
+Cursor is blocking the turn before it reaches AnyCursor. Check:
+
+- the selected model uses a non-BYOK `cursorId` such as `claude-anycursor-...`
+- old chats and the composer selection were migrated to that ID
+- Cursor's cached model catalog does not still contain the old ID
+
+### "Local loop can't run this model"
+
+The local loop needs `run_ready` prompt metadata and a recognized model family. Update AnyCursor, then select the AnyCursor model again. If the message names an unrecognized family, the cached Cursor catalog is stale.
+
+### Gateway is down
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:43110/health
+```
+
+Then run **AnyCursor: Doctor** from the Cursor command palette.
+
+## Principles
+
+- **Cursor stays Cursor.** Native models, tools, MCP, subagents, approvals and history remain native.
+- **Your keys stay yours.** BYOK traffic is routed locally, not through a separate hosted service.
+- **Open Cursor normally.** No launcher and no visible companion app.
+- **Configuration over hardcoding.** Providers, endpoints, models and display names are data.
+- **Local by default.** Secrets live in Windows Credential Manager or environment variables.
+
+## Roadmap
+
+- Native + BYOK route-switch verification after the Cursor quota reset
+- Live Bedrock credential testing
+- Release signing and automatic extension updates
+- Optional local history migration tools
 
 ## License
 
-MIT
+MIT © AnyCursor
