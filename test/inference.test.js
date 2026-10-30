@@ -182,6 +182,7 @@ test('run_ready carries recognized prompt metadata and display name', () => {
   assert.equal(str(metadata, 30), 'high');
   assert.equal(str(ready, 3), 'DeepSeek');
   const modes = readFields(metadata).filter((f) => f.no === 46).map((f) => str(f.value, 1));
-  assert.deepEqual(modes, ['agent', 'chat', 'plan', 'debug']);
-  assert.ok(one(metadata, 48));
+  assert.deepEqual(modes, ['agent', 'chat', 'plan', 'debug', 'triage', 'multitask']);
+  assert.equal(str(one(metadata, 48), 1), 'AskQuestion');
+  assert.equal(str(metadata, 44), 'DeepSeek');
 });

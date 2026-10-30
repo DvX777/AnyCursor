@@ -406,12 +406,8 @@ function heartbeatFrame() {
   return serverMessage(1, vi(1, 0));
 }
 
-function agentModeConfig(modeId, askQuestion, targets) {
-  return Buffer.concat([
-    ld(1, Buffer.from(modeId)),
-    askQuestion ? vi(2, 1) : Buffer.alloc(0),
-    ld(3, Buffer.concat((targets || []).map((target) => ld(1, Buffer.from(target))))),
-  ]);
+function agentModeConfig(modeId) {
+  return ld(1, Buffer.from(modeId));
 }
 
 function runReadyFrame(model, requested, effort) {
@@ -419,19 +415,16 @@ function runReadyFrame(model, requested, effort) {
     ld(1, Buffer.from(model.cursorId)),
     requested && requested.maxMode ? vi(2, 1) : Buffer.alloc(0),
   ]);
-  const modeConfigs = [
-    agentModeConfig('agent', true, ['plan', 'debug', 'chat']),
-    agentModeConfig('chat', false, ['agent', 'plan', 'debug']),
-    agentModeConfig('plan', true, ['agent', 'debug', 'chat']),
-    agentModeConfig('debug', true, ['agent', 'plan', 'chat']),
-  ];
+  const modeConfigs = ['agent', 'chat', 'plan', 'debug', 'triage', 'multitask']
+    .map((modeId) => ld(46, agentModeConfig(modeId)));
   const promptMetadata = Buffer.concat([
     ld(1, Buffer.from('openai')),
     ld(2, Buffer.from('latest')),
     effort ? ld(30, Buffer.from(String(effort))) : Buffer.alloc(0),
-    ...modeConfigs.map((config) => ld(46, config)),
+    ld(44, Buffer.from(model.displayName || model.model || model.cursorId)),
+    ...modeConfigs,
     ld(48, Buffer.concat([
-      ld(1, Buffer.from('ask_question')),
+      ld(1, Buffer.from('AskQuestion')),
       vi(2, 0),
     ])),
   ]);
