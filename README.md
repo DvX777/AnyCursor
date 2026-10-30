@@ -5,6 +5,8 @@
   <img alt="AnyCursor" src="assets/anycursor-logo-light.png" width="460">
 </picture>
 
+<sub>Independent project · not affiliated with, endorsed by, or sponsored by Cursor or Anysphere.<br>"Cursor" is a trademark of its respective owner, used only to describe compatibility.</sub>
+
 **Use your own models inside Cursor — with Cursor's native Agent, tools, MCP, subagents and approvals.**
 
 _Your keys. Your models. Cursor's native experience. No second app to open._
@@ -304,7 +306,3 @@ Then run **AnyCursor: Doctor** from the Cursor command palette.
 ## License
 
 MIT © AnyCursor
-
-AnyCursor is an independent project. It is not affiliated with, endorsed by, or
-sponsored by Cursor or Anysphere. "Cursor" is a trademark of its respective
-owner and is used only to describe compatibility.
