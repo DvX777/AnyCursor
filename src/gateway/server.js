@@ -26,7 +26,6 @@ const { transformCatalog } = require('../catalog/response');
 const { selectedModelIds } = require('../cursor/state');
 const providers = require('../providers');
 const { cachedOpencodeCredential } = require('../providers/opencode-credential');
-const history = require('../history/import');
 const inference = require('./inference');
 
 const argv = process.argv.slice(2);
@@ -884,50 +883,7 @@ function handleLocal(req, res) {
     return true;
   }
 
-  if (pathname === '/api/history/import' && req.method === 'POST') {
-    readJsonBody(req).then((body) => {
-      const ids = Array.isArray(body.ids) ? body.ids : [body.id].filter(Boolean);
-      try {
-        const result = history.importConversations({
-          ids,
-          target: body.to,
-          move: body.mode === 'move',
-          force: body.force === true,
-          dryRun: body.dryRun === true,
-        });
-        log({
-          id: ++seq, ts: new Date().toISOString(), dir: 'history-import',
-          mode: result.mode, target: result.target.id,
-          conversations: result.conversations, keys: result.keys,
-        });
-        sendJson(res, 200, { ok: true, ...result });
-      } catch (error) {
-        const message = String(error && error.message ? error.message : error);
-        sendJson(res, /Cursor is running/.test(message) ? 409 : 400, { ok: false, error: message });
-      }
-    }, (error) => {
-      sendJson(res, 400, { ok: false, error: String(error && error.message ? error.message : error) });
-    });
-    return true;
-  }
-
   if (req.method !== 'GET' && req.method !== 'HEAD') return false;
-
-  if (pathname === '/api/history') {
-    try {
-      const url = new URL(req.url, `http://${HOST}:${PORT}`);
-      const workspace = url.searchParams.get('workspace') || '';
-      const payload = {
-        cursorRunning: history.isCursorRunning(),
-        workspaces: history.listWorkspaces(),
-        conversations: history.listHistory({ workspace, includeEmpty: false }),
-      };
-      sendJson(res, 200, payload, headOnly);
-    } catch (error) {
-      sendJson(res, 500, { error: String(error && error.message ? error.message : error) }, headOnly);
-    }
-    return true;
-  }
 
   if (pathname === '/health' || pathname === '/api/status') {
     sendJson(res, currentConfig() ? 200 : 503, statusPayload(), headOnly);

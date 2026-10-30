@@ -10,7 +10,7 @@ _Your keys. Your models. Cursor's native experience. No second app to open._
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white">
   <img alt="Cursor" src="https://img.shields.io/badge/Cursor-3.x-000000?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge">
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-55%20passing-brightgreen?style=for-the-badge">
+  <img alt="Tests" src="https://img.shields.io/badge/Tests-48%20passing-brightgreen?style=for-the-badge">
 </p>
 <p>
   <img alt="BYOK" src="https://img.shields.io/badge/BYOK-OpenAI%20%7C%20Anthropic%20%7C%20Google%20%7C%20Azure%20%7C%20Bedrock-blue?style=for-the-badge">
@@ -251,33 +251,20 @@ Run the gateway manually:
 node src\gateway\index.js --config C:\path\to\anycursor.json
 ```
 
-Verify the native picker on a test port:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\verify-native-picker.ps1
-```
-
-Stop the test gateway:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\stop-gateway.ps1 -Port 43111
-```
-
 ### Project Layout
 
 ```text
 AnyCursor/
-├─ extension/       Cursor extension: supervision, settings, lifecycle
-├─ public/          Local dashboard and settings UI
-├─ src/
-│  ├─ gateway/      h1/h2c gateway, RunInference, live turns
-│  ├─ providers/    OpenAI, Anthropic, Google, Azure, Bedrock
-│  ├─ catalog/      AvailableModels merge, model metadata
-│  ├─ config/       validation, hot reload, credential storage
-│  ├─ cursor/       Cursor state and model IDs
-│  └─ history/      optional local history tools
-├─ scripts/         installer, shortcuts, migrations, diagnostics
-└─ schema/          configuration schema
+|-- extension/       Cursor extension: supervision, settings, lifecycle
+|-- public/          Local dashboard and settings UI
+|-- src/
+|   |-- gateway/     h1/h2c gateway, RunInference, live turns
+|   |-- providers/   OpenAI, Anthropic, Google, Azure, Bedrock
+|   |-- catalog/     AvailableModels merge, model metadata
+|   |-- config/      validation, hot reload, credential storage
+|   `-- cursor/      Cursor state and model IDs
+|-- scripts/         installer, shortcuts, migrations, diagnostics
+`-- schema/          configuration schema
 ```
 
 ## Troubleshooting
@@ -309,13 +296,6 @@ Then run **AnyCursor: Doctor** from the Cursor command palette.
 - **Open Cursor normally.** No launcher and no visible companion app.
 - **Configuration over hardcoding.** Providers, endpoints, models and display names are data.
 - **Local by default.** Secrets live in Windows Credential Manager or environment variables.
-
-## Roadmap
-
-- Native + BYOK route-switch verification after the Cursor quota reset
-- Live Bedrock credential testing
-- Release signing and automatic extension updates
-- Optional local history migration tools
 
 ## License
 

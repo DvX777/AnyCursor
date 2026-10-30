@@ -89,7 +89,6 @@
       <button data-tab="providers" class="active" onclick="showTab('providers')">Providers</button>
       <button data-tab="models" onclick="showTab('models')">Models</button>
       <button data-tab="gateway" onclick="showTab('gateway')">Gateway &amp; routing</button>
-      <button data-tab="history" onclick="showTab('history')">History</button>
       <button data-tab="raw" onclick="showTab('raw')">Raw JSON</button>
     </div>
 
@@ -128,28 +127,6 @@
         <div class="hint" id="config-meta"></div>
         <div id="warnings-box" style="margin-top:10px"></div>
       </div>
-    </section>
-
-    <section id="panel-history" class="panel">
-      <div class="form-head">
-        <strong>History</strong>
-        <span class="muted">Cursor chat lists are workspace-scoped. Copy a conversation to make it appear in another workspace while keeping the original.</span>
-        <span class="spacer"></span>
-        <button class="ghost" onclick="loadHistory()">Refresh</button>
-      </div>
-      <div class="card form">
-        <div class="fields">
-          <div class="field"><label>Show workspace</label><select id="history-filter" onchange="loadHistory()"></select></div>
-          <div class="field"><label>Import target</label><select id="history-target"></select></div>
-          <div class="field"><label>&nbsp;</label><label class="inline"><input type="checkbox" id="history-force"> Force while Cursor is running</label></div>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="act" onclick="importHistory('copy')">Copy selected</button>
-          <button class="ghost" onclick="importHistory('move')">Move selected</button>
-          <span id="history-status" class="hint"></span>
-        </div>
-      </div>
-      <div id="history-list"></div>
     </section>
 
     <section id="panel-raw" class="panel">      <p class="hint">Advanced editing. Stored secrets are shown as empty strings; leave them empty to keep the saved value. Press “Apply JSON” to load your edits into the forms, then “Save”.</p>
@@ -199,7 +176,6 @@
       activeTab = name;
       document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
       document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
-      if (name === 'history' && !HISTORY) loadHistory();
     }
 
     function field(label, control, opts = {}) {
@@ -465,112 +441,6 @@
           </div>
         </div>`;
       }).join('') || '<div class="card muted">No models yet. Add one after configuring a provider.</div>';
-    }
-
-    // ---------- history ----------
-    let HISTORY = null;
-
-    function prettyFolder(uri) {
-      if (!uri) return '(no folder)';
-      if (uri.startsWith('file://')) {
-        try { return decodeURIComponent(new URL(uri).pathname).replace(/^\/([A-Za-z]:)/, '$1'); } catch (_) { return uri; }
-      }
-      return uri;
-    }
-    function workspaceLabel(workspace) {
-      return `${prettyFolder(workspace.folder)} (${workspace.id.slice(0, 8)})`;
-    }
-
-    async function loadHistory() {
-      const filter = $('history-filter').value || '';
-      $('history-status').textContent = 'Loading…';
-      try {
-        const res = await fetch('/api/history' + (filter ? `?workspace=${encodeURIComponent(filter)}` : ''), { cache: 'no-store' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        HISTORY = data;
-        renderHistory();
-      } catch (error) {
-        $('history-status').textContent = 'Could not load history: ' + error.message;
-      }
-    }
-
-    function renderHistory() {
-      const workspaces = HISTORY.workspaces || [];
-      const filter = $('history-filter');
-      const target = $('history-target');
-      const previousFilter = filter.value;
-      const previousTarget = target.value;
-      filter.innerHTML = '<option value="">All workspaces</option>' +
-        workspaces.map((w) => `<option value="${attr(w.id)}">${esc(workspaceLabel(w))} — ${w.conversations}</option>`).join('');
-      if (workspaces.some((w) => w.id === previousFilter)) filter.value = previousFilter;
-      target.innerHTML = workspaces.map((w) => `<option value="${attr(w.id)}">${esc(workspaceLabel(w))}</option>`).join('');
-      if (workspaces.some((w) => w.id === previousTarget)) target.value = previousTarget;
-
-      $('history-status').textContent = HISTORY.cursorRunning
-        ? 'Cursor is running. Quit Cursor before copying, or tick Force to write anyway.'
-        : 'Cursor is not running; imports are safe.';
-
-      const rows = HISTORY.conversations || [];
-      if (!rows.length) {
-        $('history-list').innerHTML = '<div class="card muted" style="margin-top:12px">No non-empty conversations found.</div>';
-        return;
-      }
-      $('history-list').innerHTML = `<table>
-        <thead><tr><th class="check"><input type="checkbox" onclick="toggleHistoryAll(this.checked)"></th><th>Title</th><th>Workspace</th><th>Updated</th><th>Conversation id</th></tr></thead>
-        <tbody>${rows.map((row) => `<tr>
-          <td class="check"><input type="checkbox" class="history-check" value="${attr(row.id)}"></td>
-          <td><strong>${esc(row.title || '(untitled)')}</strong></td>
-          <td class="mono">${esc(prettyFolder(row.workspace))}</td>
-          <td class="mono">${esc(formatWhen(row.updatedAt))}</td>
-          <td class="mono">${esc(row.id)}</td>
-        </tr>`).join('')}</tbody>
-      </table>`;
-    }
-
-    function formatWhen(ms) {
-      const value = Number(ms);
-      if (!value) return '—';
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? '—' : date.toISOString().replace('T', ' ').slice(0, 16);
-    }
-    function toggleHistoryAll(checked) {
-      document.querySelectorAll('.history-check').forEach((box) => { box.checked = checked; });
-    }
-
-    async function importHistory(mode) {
-      const ids = Array.from(document.querySelectorAll('.history-check:checked')).map((box) => box.value);
-      const target = $('history-target').value;
-      if (!ids.length) { $('history-status').textContent = 'Select at least one conversation.'; return; }
-      if (!target) { $('history-status').textContent = 'Choose an import target.'; return; }
-      const force = $('history-force').checked;
-      const workspace = (HISTORY.workspaces || []).find((w) => w.id === target);
-      const action = mode === 'move' ? 'Move' : 'Copy';
-      const extra = mode === 'move'
-        ? ' The conversations will leave their current workspace.'
-        : ' The originals stay where they are.';
-      if (!confirm(`${action} ${ids.length} conversation(s) to ${workspace ? prettyFolder(workspace.folder) : target}?\n\n${extra}\n\nQuit Cursor first. A database backup is written before any change.`)) return;
-
-      $('history-status').textContent = `${action}ing…`;
-      try {
-        const res = await fetch('/api/history/import', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ids, to: target, mode, force }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          setBanner(`${action} failed: ` + esc(data.error || `HTTP ${res.status}`), 'bad');
-          $('history-status').textContent = data.error || 'Import failed.';
-          return;
-        }
-        setBanner(`${action} complete: ${data.conversations} conversation(s), ${data.related} composer(s). Backup: <span class="mono">${esc(data.backup || '')}</span><br>Quit and reopen Cursor to see them in the target workspace.`, 'good');
-        HISTORY = null;
-        loadHistory();
-      } catch (error) {
-        setBanner(`${action} failed: ` + esc(error.message), 'bad');
-        $('history-status').textContent = error.message;
-      }
     }
 
     // ---------- gateway / routing ----------
