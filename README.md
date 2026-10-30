@@ -23,8 +23,8 @@ Working now:
 - append-only `AvailableModels` merge with display names, effort, context and
   fast metadata
 - Cursor 3.x Agent Host local-loop support (`InferenceService/RunInference`),
-  tested with text, thinking, tools, native approvals, images and explore
-  subagents
+  tested with Agent, Ask, Plan and Debug modes, the Agents Window, text,
+  thinking, tools, native approvals, MCP, images and explore subagents
 - localhost health endpoint and web dashboard
 - settings UI for providers/models with validation, backups and hot reload
 - Windows installer: packaged extension, login pre-warm task, shortcut repair
