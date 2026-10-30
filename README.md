@@ -15,7 +15,6 @@ _Your keys. Your models. Cursor's native experience. No second app to open._
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white">
   <img alt="Cursor" src="https://img.shields.io/badge/Cursor-3.x-000000?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge">
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-48%20passing-brightgreen?style=for-the-badge">
 </p>
 <p>
   <img alt="BYOK" src="https://img.shields.io/badge/BYOK-OpenAI%20%7C%20Anthropic%20%7C%20Google%20%7C%20Azure%20%7C%20Bedrock-blue?style=for-the-badge">
@@ -247,7 +246,6 @@ This is Cursor's own internal switch for pointing the desktop app at another bac
 
 ```powershell
 cd C:\Project\AnyCursor
-npm test
 ```
 
 Run the gateway manually:
