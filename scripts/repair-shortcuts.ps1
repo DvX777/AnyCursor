@@ -111,5 +111,5 @@ if ($changed.Count -eq 0) {
   $action = if ($Undo) { "restored" } else { "pointed at http://127.0.0.1:$Port" }
   Write-Host "Updated $($changed.Count) shortcut(s), ${action}:" -ForegroundColor Green
   $changed | ForEach-Object { Write-Host "  $_" }
-  Write-Host "Backups: *.lnk.anycursor.bak"
+  Write-Host "Backups: $env:LOCALAPPDATA\AnyCursor\backups\shortcuts"
 }

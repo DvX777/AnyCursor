@@ -56,6 +56,14 @@ if ($cli) {
   Write-Warning "Cursor CLI not found; remove the AnyCursor extension from Cursor manually."
 }
 
+$extRoot = Join-Path $env:USERPROFILE ".cursor\extensions"
+if (Test-Path $extRoot) {
+  Get-ChildItem $extRoot -Directory -Filter "anycursor.anycursor-*" -ErrorAction SilentlyContinue | ForEach-Object {
+    Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "Removed extension directory $($_.FullName)." -ForegroundColor Green
+  }
+}
+
 & (Join-Path $PSScriptRoot "repair-shortcuts.ps1") -Undo
 
 if ($RemoveData) {

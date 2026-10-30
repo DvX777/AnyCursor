@@ -15,7 +15,7 @@
     "workspace"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "*"
   ],
   "main": "./src/extension.js",
   "contributes": {
