@@ -304,3 +304,7 @@ Then run **AnyCursor: Doctor** from the Cursor command palette.
 ## License
 
 MIT © AnyCursor
+
+AnyCursor is an independent project. It is not affiliated with, endorsed by, or
+sponsored by Cursor or Anysphere. "Cursor" is a trademark of its respective
+owner and is used only to describe compatibility.
