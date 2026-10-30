@@ -12,7 +12,7 @@
     "Other"
   ],
   "extensionKind": [
-    "workspace"
+    "ui"
   ],
   "activationEvents": [
     "*"
@@ -52,5 +52,10 @@
   "homepage": "https://github.com/DvX777/Anycursor",
   "bugs": {
     "url": "https://github.com/DvX777/Anycursor/issues"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
   }
 }
