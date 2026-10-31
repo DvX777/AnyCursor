@@ -15,6 +15,7 @@
 
 const providers = require('../providers');
 const selections = require('./selections');
+const usage = require('./usage');
 
 /* ---------------- protobuf primitives ---------------- */
 
@@ -624,6 +625,10 @@ function handleRunInference(stream, hdrs, id, reqPath, options) {
         }
       }
       send(invocationEndFrame(invocationId));
+      usage.record(selected.cursorId, {
+        tokensIn: usage.textSize(messages),
+        tokensOut: Math.ceil((textChars + thinkingChars) / 4),
+      });
       log({
         id, ts: new Date().toISOString(), dir: 'inference-turn',
         model: selected.cursorId, invocationId, messages: messages.length, tools: tools.length,

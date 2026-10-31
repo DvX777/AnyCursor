@@ -28,6 +28,7 @@ const providers = require('../providers');
 const { cachedOpencodeCredential } = require('../providers/opencode-credential');
 const inference = require('./inference');
 const selections = require('./selections');
+const usage = require('./usage');
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -793,6 +794,7 @@ function statusPayload() {
       : {},
     models: config ? config.models.map(redactModel) : [],
     selections: selections.snapshot(),
+    usage: usage.snapshot(),
   };
 }
 
