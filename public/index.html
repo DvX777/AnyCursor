@@ -419,6 +419,13 @@
   .onboard .step { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
   .onboard .step b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: #f1f3f6; font-size: 10.5px; font-weight: 600; color: var(--ink-2); }
 
+  .discover { border: 1px solid #ece3cd; background: #fffdf7; border-radius: 12px; padding: 14px 16px 10px; margin-bottom: 20px; }
+  .discover h3 { margin: 0; font-size: 13px; font-weight: 600; }
+  .discover > p { margin: 3px 0 8px; font-size: 12px; color: var(--ink-2); }
+  .discover-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #f2ecdd; }
+  .discover-row .id { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .discover-row .meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
   .empty { padding: 40px 16px 44px; text-align: center; color: var(--muted); font-size: 13px; }
   .empty strong { display: block; margin-bottom: 3px; color: var(--ink); font-size: 13.5px; font-weight: 500; }
 
@@ -988,6 +995,19 @@
 
   /* ---------------- overview ---------------- */
   const USAGE_COLORS = ['#2563eb', '#0f8a49', '#b7791f', '#7c3aed', '#c0392b', '#0891b2', '#4b5563'];
+  const NAME_ACRONYMS = new Set(['gpt', 'oss', 'glm', 'ai', 'api', 'tts', 'stt', 'ui', 'id', 'llm', 'vl', 'vl']);
+  function prettyModelName(value) {
+    return String(value || '')
+      .split(/[-_:\s]+/)
+      .filter(Boolean)
+      .map((part) => {
+        const lower = part.toLowerCase();
+        if (NAME_ACRONYMS.has(lower)) return lower.toUpperCase();
+        if (/^\d+[a-z]?$/.test(part)) return part.toUpperCase();
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      })
+      .join(' ');
+  }
   function effectiveCursorId(m) {
     if (!m) return '';
     if (m.cursorId) return m.cursorId;
@@ -1432,6 +1452,71 @@
     go('models');
   }
 
+  function dismissedIds() {
+    try { return new Set(JSON.parse(localStorage.getItem('anycursor.dismissed') || '[]')); } catch (_) { return new Set(); }
+  }
+  function dismissDiscovered(id) {
+    const set = dismissedIds();
+    set.add(String(id));
+    try { localStorage.setItem('anycursor.dismissed', JSON.stringify([...set])); } catch (_) { /* ignore */ }
+    renderBody();
+  }
+  function knownModelIds() {
+    const out = new Set();
+    for (const m of CFG.models || []) {
+      for (const value of [m.cursorId, m.id, m.model, ...(m.legacyIds || [])]) if (value) out.add(String(value));
+    }
+    return out;
+  }
+  function discoveredModels() {
+    const known = knownModelIds();
+    const dismissed = dismissedIds();
+    return ((STATUS && STATUS.discovered) || []).filter((entry) => !known.has(entry.id) && !dismissed.has(entry.id));
+  }
+  function discoveredPanel() {
+    const items = discoveredModels();
+    if (!items.length) return '';
+    const rows = items.map((entry) => `<div class="discover-row">
+        <span class="id" title="${attr(entry.id)}">${esc(entry.id)}</span>
+        <span class="meta">${entry.requests} request${entry.requests === 1 ? '' : 's'} · ${esc(ago(entry.lastAt))}</span>
+        <button class="btn" onclick="adoptModel('${attr(entry.id)}')">Add</button>
+        <button class="btn ghost" onclick="dismissDiscovered('${attr(entry.id)}')">Dismiss</button>
+      </div>`).join('');
+    return `<div class="discover">
+      <h3>Seen in Cursor</h3>
+      <p>These model ids were requested through the gateway but are not configured here. Add one to route it through your provider — limits and capabilities are filled in for you.</p>
+      ${rows}
+    </div>`;
+  }
+  async function adoptModel(id) {
+    const provider = providerNames()[0];
+    if (!provider) { toast('Add a provider before adding models.', 'bad', 'No provider'); return; }
+    const base = String(id).replace(/^claude-anycursor-/, '').replace(/[^a-z0-9.]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'model';
+    let unique = base;
+    let n = 2;
+    while ((CFG.models || []).some((m) => m.id === unique)) unique = `${base}-${n++}`;
+    const pretty = prettyModelName(id);
+    CFG.models = CFG.models || [];
+    CFG.models.push({
+      id: unique,
+      displayName: pretty,
+      shortName: pretty,
+      provider,
+      providerLabel: provider,
+      model: id,
+      contextWindow: 128000,
+      maxOutput: 8192,
+      fast: false,
+      enabled: true,
+      capabilities: { tools: true, vision: false, reasoning: false, streaming: true, cache: false },
+      legacyIds: [id],
+    });
+    const index = CFG.models.length - 1;
+    markDirty();
+    go('models', { model: index });
+    await lookupModel(index);
+  }
+
   function renderModelList() {
     const models = CFG.models || [];
     if (!models.length) {
@@ -1456,7 +1541,7 @@
         <td class="chev-cell"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></td>
       </tr>`;
     }).join('');
-    $('page-body').innerHTML = `<table class="table">
+    $('page-body').innerHTML = `${discoveredPanel()}<table class="table">
       <thead><tr><th style="width:300px">Model</th><th class="hide-sm" style="width:150px">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:96px">Context</th><th style="width:120px">Status</th><th style="width:34px"></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
     filterRows();
@@ -1505,9 +1590,7 @@
     const m = modelAt(index);
     if (!m) return;
     if (meta.name) {
-      const pretty = String(meta.name).includes('-')
-        ? String(meta.name).split(/[-_]/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
-        : meta.name;
+      const pretty = prettyModelName(meta.name);
       if (!m.displayName || m.displayName === 'New model' || m.displayName === m.model) m.displayName = pretty;
       if (!m.shortName || m.shortName === 'New model' || m.shortName === m.model) m.shortName = pretty;
     }

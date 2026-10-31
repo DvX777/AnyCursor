@@ -16,6 +16,7 @@
 const providers = require('../providers');
 const selections = require('./selections');
 const usage = require('./usage');
+const discovered = require('./discovered');
 
 /* ---------------- protobuf primitives ---------------- */
 
@@ -538,6 +539,7 @@ function handleRunInference(stream, hdrs, id, reqPath, options) {
     conversationId = runRequest.conversationId || conversationId;
     const resolved = resolve(runRequest.modelId);
     if (!resolved || resolved.route !== 'byok') {
+      discovered.record(runRequest.modelId, runRequest.requestedModel && runRequest.requestedModel.parameters);
       stopped = true;
       stream.removeListener('data', onData);
       forward(raw);
