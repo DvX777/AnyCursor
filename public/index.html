@@ -263,9 +263,12 @@
   .legend { display: flex; flex-direction: column; gap: 9px; }
   .lg-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
   .lg-row .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .lg-ico { display: inline-flex; flex: none; }
+  .lg-ico .logo { width: 20px; height: 20px; background: transparent; border: 0; box-shadow: none; }
+  .lg-ico .logo svg { width: 16px; height: 16px; }
   .lg-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lg-row .pc { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .lg-meta { margin: -4px 0 2px 16px; font-size: 11px; color: var(--muted); }
+  .lg-meta { margin: -4px 0 2px 28px; font-size: 11px; color: var(--muted); }
   .usage-empty { padding: 34px 6px 32px; text-align: center; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
 
   .table-title {
@@ -1128,9 +1131,25 @@
     const match = live.find((x) => x.id === m.id);
     return (match && match.cursorId) || '';
   }
+  function modelForId(id) {
+    const direct = (CFG.models || []).find((m) => m.cursorId === id || m.id === id);
+    if (direct) return direct;
+    const live = (STATUS && STATUS.models || []).find((m) => m.cursorId === id || m.id === id);
+    if (live) {
+      const configured = (CFG.models || []).find((m) => m.id === live.id);
+      if (configured) return configured;
+      return live;
+    }
+    return null;
+  }
   function modelName(id) {
-    const model = (CFG.models || []).find((m) => m.cursorId === id || m.id === id);
+    const model = modelForId(id);
     return model ? (model.displayName || model.id) : String(id).replace(/^claude-anycursor-/, '');
+  }
+  function usageColor(model, index) {
+    const slug = model ? brandFor([model.id, model.model, model.vendor, model.displayName].join(' ')) : null;
+    if (slug && BRANDS[slug]) return BRANDS[slug].c;
+    return USAGE_COLORS[index % USAGE_COLORS.length];
   }
   function usagePanel() {
     const u = (STATUS && STATUS.usage) || { total: { requests: 0, tokensIn: 0, tokensOut: 0 }, models: [] };
@@ -1142,35 +1161,38 @@
     const C = 2 * Math.PI * 54;
     const BOX = 208;
     const RING = (54 / 140) * 168 + 18;
+    const rows = u.models.map((entry, index) => {
+      const model = modelForId(entry.id) || { id: modelName(entry.id), displayName: modelName(entry.id) };
+      return { entry, model, color: usageColor(model, index), share: entry.requests / total };
+    });
+
     let offset = 0;
-    let walked = 0;
-    const marks = u.models.map((entry) => {
-      const share = entry.requests / total;
-      const angle = -Math.PI / 2 + walked * 2 * Math.PI;
-      walked += share;
-      const model = (CFG.models || []).find((x) => x.cursorId === entry.id || x.id === entry.id)
-        || { id: entry.id, displayName: modelName(entry.id) };
-      const x = BOX / 2 + RING * Math.cos(angle);
-      const y = BOX / 2 + RING * Math.sin(angle);
-      return `<span class="donut-mark" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${modelIcon(model)}</span>`;
-    }).join('');
-    const arcs = u.models.map((m, i) => {
-      const share = m.requests / total;
+    const arcs = rows.map(({ entry, share, color }) => {
       const len = Math.max(0, share * C - 1.5);
-      const arc = `<circle cx="70" cy="70" r="54" stroke="${USAGE_COLORS[i % USAGE_COLORS.length]}"
+      const arc = `<circle cx="70" cy="70" r="54" stroke="${color}"
         stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}" stroke-linecap="butt"></circle>`;
       offset += share * C;
       return arc;
     }).join('');
-    const legend = u.models.map((m, i) => {
-      const share = Math.round((m.requests / total) * 100);
-      const color = USAGE_COLORS[i % USAGE_COLORS.length];
-      const tokens = m.tokensIn + m.tokensOut;
-      return `<div class="lg-row"><span class="sw" style="background:${color}"></span>
-          <span class="nm">${esc(modelName(m.id))}</span>
-          <span class="pc">${share}%</span></div>
-        <div class="lg-meta">${m.requests} request${m.requests === 1 ? '' : 's'} · ${tokens ? fmtTokens(tokens) + ' tokens' : 'tokens n/a'}</div>`;
+
+    let walked = 0;
+    const marks = rows.map(({ model, share }) => {
+      const angle = -Math.PI / 2 + (walked + share / 2) * 2 * Math.PI;
+      walked += share;
+      const x = BOX / 2 + RING * Math.cos(angle);
+      const y = BOX / 2 + RING * Math.sin(angle);
+      return `<span class="donut-mark" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${modelIcon(model)}</span>`;
     }).join('');
+
+    const legend = rows.map(({ entry, model }) => {
+      const share = Math.round((entry.requests / total) * 100);
+      const tokens = entry.tokensIn + entry.tokensOut;
+      return `<div class="lg-row"><span class="lg-ico">${modelIcon(model)}</span>
+          <span class="nm">${esc(model.displayName || model.id)}</span>
+          <span class="pc">${share}%</span></div>
+        <div class="lg-meta">${entry.requests} request${entry.requests === 1 ? '' : 's'} · ${tokens ? fmtTokens(tokens) + ' tokens' : 'tokens n/a'}</div>`;
+    }).join('');
+
     return `<div class="panel usage-panel">
       <div class="panel-head"><h2>Usage</h2><span class="spacer"></span><span class="sub">since start</span></div>
       <div class="panel-body">

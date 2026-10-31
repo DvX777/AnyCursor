@@ -787,7 +787,7 @@ async function lookupModelMetadata(providerName, modelId) {
   if (base.includes('ollama.com')) hostIds.push('ollama-cloud');
   if (/:11434|localhost|127\.0\.0\.1/.test(base)) hostIds.push('ollama');
   for (const [needle, id] of [
-    ['openrouter', 'openrouter'], ['api.openai.com', 'openai'], ['anthropic', 'anthropic'],
+    ['openrouter', 'openrouter'], ['opencode.ai', 'opencode'], ['api.openai.com', 'openai'], ['anthropic', 'anthropic'],
     ['googleapis', 'google'], ['deepseek', 'deepseek'], ['mistral', 'mistral'], ['groq', 'groq'],
   ]) {
     if (base.includes(needle)) hostIds.push(id);
