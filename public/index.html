@@ -192,9 +192,21 @@
   /* ---------------- tables ---------------- */
   .table { width: 100%; border-collapse: collapse; }
   .table th {
-    padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 400; color: var(--muted);
+    padding: 9px 12px; text-align: left; font-size: 11.5px; font-weight: 400; color: #7f858e;
     border-bottom: 1px solid var(--line); white-space: nowrap;
   }
+  .table th.num, .table td.num { text-align: right; }
+  .table td.num { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+  .table-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; }
+  .table-title h2 { margin: 0; font-size: 13.5px; font-weight: 500; letter-spacing: -.01em; }
+  .table-title .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .table-title .spacer { flex: 1; }
+  .table-title .link {
+    padding: 0; border: 0; background: none; color: var(--ink-2);
+    font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .table-title .link:hover { color: var(--blue); text-decoration: underline; }
   .table td { padding: 0 12px; height: 50px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
   .table tbody tr:last-child td { border-bottom: 0; }
   .table tbody tr { cursor: pointer; }
@@ -236,7 +248,7 @@
   .section-title h3 { margin: 0; font-size: 13.5px; font-weight: 500; letter-spacing: -.005em; }
   .section-title p { margin: 3px 0 0; font-size: 12.5px; color: var(--ink-2); }
 
-  .row { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 26px; padding: 12px 0; align-items: center; }
+  .row { display: grid; grid-template-columns: 212px minmax(0, 1fr); gap: 26px; padding: 12px 0; align-items: center; }
   .row .label { font-size: 13px; font-weight: 500; color: var(--ink); }
   .row .desc { margin-top: 2px; font-size: 12px; line-height: 1.45; color: var(--muted); font-weight: 400; }
   .control { display: flex; flex-direction: column; gap: 7px; max-width: 420px; min-width: 0; }
@@ -291,7 +303,7 @@
   .sel-opt:hover { background: #f5f6f7; }
   .sel-opt .tick { margin-left: auto; width: 14px; height: 14px; color: var(--blue); opacity: 0; }
   .sel-opt.on .tick { opacity: 1; }
-  .sel.pill { width: auto; max-width: none; display: inline-block; }
+  .sel.pill { width: auto; max-width: none; display: inline-block; border: 0; background: none; padding: 0; height: auto; }
   .sel.pill .sel-btn { height: 34px; border-radius: 999px; padding: 0 13px; font-size: 13px; }
   .sel.pill .sel-menu { min-width: 210px; }
 
@@ -760,16 +772,14 @@
       tools.innerHTML = `
         ${select([{ value: '', label: 'All types' }, ...TYPES.map((t) => ({ value: t, label: t }))], typeFilter, (v) => { typeFilter = v; filterRows(); }, { className: 'pill' })}
         ${select([{ value: '', label: 'Any credentials' }, { value: 'ok', label: 'Stored' }, { value: 'warn', label: 'Credential source' }, { value: 'bad', label: 'Missing' }], statusFilter, (v) => { statusFilter = v; filterRows(); }, { className: 'pill' })}
-        <span class="spacer"></span>
-        <span class="muted" style="font-size:12.5px" id="result-count"></span>`;
+        <span class="muted" style="font-size:12.5px;margin-left:2px" id="result-count"></span>`;
       return;
     }
     if (route.view === 'models' && route.model === null) {
       tools.innerHTML = `
         ${select([{ value: '', label: 'All providers' }, ...Object.keys(CFG.providers || {}).map((n) => ({ value: n, label: n }))], typeFilter, (v) => { typeFilter = v; filterRows(); }, { className: 'pill' })}
         ${select([{ value: '', label: 'Any status' }, { value: 'ok', label: 'Enabled' }, { value: 'warn', label: 'Disabled' }], statusFilter, (v) => { statusFilter = v; filterRows(); }, { className: 'pill' })}
-        <span class="spacer"></span>
-        <span class="muted" style="font-size:12.5px" id="result-count"></span>`;
+        <span class="muted" style="font-size:12.5px;margin-left:2px" id="result-count"></span>`;
       return;
     }
     tools.innerHTML = '';
@@ -960,7 +970,7 @@
           <div class="grow"><div class="name">${esc(m.displayName || m.id || 'model')}</div><div class="meta mono">${esc(m.model || '')}</div></div></div></td>
         <td class="muted hide-sm">${esc(m.provider || '')}</td>
         <td class="hide-sm">${caps.map((c) => `<span class="tag">${c}</span>`).join(' ') || '<span class="muted">—</span>'}</td>
-        <td class="hide-sm muted">${contextLabel(m)}</td>
+        <td class="hide-sm num">${contextLabel(m)}</td>
         <td><span class="status"><span class="dot ${m.enabled === false ? 'warn' : 'ok'}"></span>${m.enabled === false ? 'Disabled' : 'Enabled'}</span></td>
         <td class="chev-cell"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></td>
       </tr>`;
@@ -977,7 +987,7 @@
         <td><div class="cell">${providerIcon(name, p)}
           <div class="grow"><div class="name">${esc(name)}</div><div class="meta">${esc(p.type || 'unset')}</div></div></div></td>
         <td class="hide-sm mono muted truncate">${esc(p.baseUrl || '—')}</td>
-        <td class="muted">${count} model${count === 1 ? '' : 's'}</td>
+        <td class="num">${count}</td>
         <td><span class="status"><span class="dot ${state}"></span>${has ? 'Stored' : p.credential ? 'Credential' : 'Missing'}</span></td>
         <td class="chev-cell"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></td>
       </tr>`;
@@ -1000,12 +1010,14 @@
     }
 
     $('page-body').innerHTML = `${summary}
-      <table class="table" style="margin-bottom:22px">
-        <thead><tr><th style="width:34%">Model</th><th class="hide-sm">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm" style="width:82px">Context</th><th style="width:120px">Status</th><th></th></tr></thead>
+      <div class="table-title"><h2>Models</h2><span class="count">${models.length}</span><span class="spacer"></span><button class="link" onclick="go('models')">Open models</button></div>
+      <table class="table" style="margin-bottom:30px">
+        <thead><tr><th style="width:33%">Model</th><th class="hide-sm" style="width:17%">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:86px">Context</th><th style="width:112px">Status</th><th></th></tr></thead>
         <tbody>${modelRows || '<tr><td colspan="6"><div class="empty"><strong>No models yet</strong>Your provider is ready — add a model to expose it in Cursor&#39;s picker.<div style="margin-top:14px"><button class="pill" onclick="addModel()">+ Add model</button></div></div></td></tr>'}</tbody>
       </table>
+      <div class="table-title"><h2>Providers</h2><span class="count">${providers.length}</span><span class="spacer"></span><button class="link" onclick="go('providers')">Open providers</button></div>
       <table class="table">
-        <thead><tr><th style="width:30%">Provider</th><th class="hide-sm">Endpoint</th><th style="width:110px">Models</th><th style="width:130px">Credentials</th><th></th></tr></thead>
+        <thead><tr><th style="width:28%">Provider</th><th class="hide-sm">Endpoint</th><th class="num" style="width:92px">Models</th><th style="width:132px">Credentials</th><th></th></tr></thead>
         <tbody>${providerRows || '<tr><td colspan="5"><div class="empty"><strong>No providers yet</strong>Add one to start routing your own models.</div></td></tr>'}</tbody>
       </table>
       ${warnings.length ? `<ul class="warnings">${warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
@@ -1072,15 +1084,16 @@
           data-search="${attr((name + ' ' + (p.type || '') + ' ' + (p.baseUrl || '')).toLowerCase())}"
           data-type="${attr(p.type || '')}" data-state="${state}">
         <td><div class="cell">${providerIcon(name, p)}
-          <div class="grow"><div class="name">${esc(name)}</div><div class="meta">${count} model${count === 1 ? '' : 's'}</div></div></div></td>
+          <div class="grow"><div class="name">${esc(name)}</div></div></div></td>
         <td class="muted">${esc(p.type || 'unset')}</td>
         <td class="mono muted truncate hide-sm">${esc(p.baseUrl || '—')}</td>
+        <td class="num">${count}</td>
         <td><span class="status"><span class="dot ${state}"></span>${has ? 'Stored' : p.credential ? 'Credential' : 'Missing'}</span></td>
         <td class="chev-cell"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></td>
       </tr>`;
     }).join('');
     $('page-body').innerHTML = `<table class="table">
-      <thead><tr><th style="width:32%">Provider</th><th style="width:20%">Type</th><th class="hide-sm">Endpoint</th><th style="width:130px">Credentials</th><th></th></tr></thead>
+      <thead><tr><th style="width:30%">Provider</th><th style="width:18%">Type</th><th class="hide-sm">Endpoint</th><th class="num" style="width:92px">Models</th><th style="width:132px">Credentials</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
     filterRows();
   }
@@ -1306,7 +1319,7 @@
       </tr>`;
     }).join('');
     $('page-body').innerHTML = `<table class="table">
-      <thead><tr><th style="width:32%">Model</th><th class="hide-sm">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm" style="width:82px">Context</th><th style="width:120px">Status</th><th></th></tr></thead>
+      <thead><tr><th style="width:33%">Model</th><th class="hide-sm" style="width:17%">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:86px">Context</th><th style="width:112px">Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
     filterRows();
   }
@@ -1325,19 +1338,19 @@
         ${row('Display name', 'Shown in the model picker.', textInput(m.displayName || '', `setModel(${index}, 'displayName', this.value)`))}
         ${row('Model id', 'Internal slug for this entry.', textInput(m.id || '', `setModel(${index}, 'id', this.value)`, { placeholder: 'deepseek-v4.1-flash' }))}
         ${row('Short name', 'Compact label used in tight UI.', textInput(m.shortName || '', `setModel(${index}, 'shortName', this.value)`))}
-        ${row('Vendor', 'Vendor shown under the model name.', textInput(m.vendor || '', `setModel(${index}, 'vendor', this.value)`))}
+        ${row('Vendor', 'Shown under the model name.', textInput(m.vendor || '', `setModel(${index}, 'vendor', this.value)`))}
         ${row('Provider label', 'Display label for the provider.', textInput(m.providerLabel || '', `setModel(${index}, 'providerLabel', this.value)`))}
       </div>
       <div class="section">
         <div class="section-title"><h3>Routing</h3><p>Where this model's requests are actually sent.</p></div>
-        ${row('Provider', 'Carries the credentials for this model.', select(providerNames().map((n) => ({ value: n, label: n })), m.provider, (v) => setModel(idx, 'provider', v)))}
+        ${row('Provider', 'Holds the credentials for this model.', select(providerNames().map((n) => ({ value: n, label: n })), m.provider, (v) => setModel(idx, 'provider', v)))}
         ${row('Real model id', 'Sent to the provider unchanged.', textInput(m.model || '', `setModel(${index}, 'model', this.value)`))}
         ${row('Legacy ids', 'Older ids that still resolve here.', textInput((m.legacyIds || []).join(', '), `setLegacyIds(${index}, this.value)`, { placeholder: 'old-id, another-id' }))}
       </div>
       <div class="section">
         <div class="section-title"><h3>Limits</h3><p>Advertised to Cursor so it budgets the conversation.</p></div>
-        ${row('Context window', 'The default window Cursor budgets. Pick one of the sizes below.', contextControl(m, index))}
-        ${row('Context sizes', 'Extra sizes offered in the picker. Type a size and press Enter.', `<div class="chips" onclick="this.querySelector('input').focus()">
+        ${row('Context window', 'What Cursor budgets by default.', contextControl(m, index))}
+        ${row('Context sizes', 'Also offered in the picker.', `<div class="chips" onclick="this.querySelector('input').focus()">
           ${(m.contextOptions || []).map((o, i) => `<span class="chip-item" title="${attr(Number(o.value).toLocaleString())} tokens"><b>${esc(o.label || fmtTokens(o.value))}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeContext(${index}, ${i})">×</button></span>`).join('')}
           <input class="chip-input" id="ctx-input-${index}" placeholder="${(m.contextOptions || []).length ? 'Add size…' : '1m:1000000'}" onkeydown="if(event.key==='Enter'){event.preventDefault();addContext(${index}, this)}">
         </div>`)}
@@ -1345,7 +1358,7 @@
       </div>
       <div class="section">
         <div class="section-title"><h3>Reasoning</h3><p>Optional effort tiers exposed in the picker.</p></div>
-        ${row('Effort tiers', 'Levels offered in the picker. Type <span class="mono">id:Label</span> and press Enter.', `<div class="chips" onclick="this.querySelector('input').focus()">
+        ${row('Effort tiers', 'Picker levels.', `<div class="chips" onclick="this.querySelector('input').focus()">
           ${(effort ? effort.tiers : []).map((t, i) => `<span class="chip-item"><b>${esc(t.label || t.id)}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeTier(${index}, ${i})">×</button></span>`).join('')}
           <input class="chip-input" id="tier-input-${index}" placeholder="${effort && effort.tiers.length ? 'Add tier…' : 'low:Low'}" onkeydown="if(event.key==='Enter'){event.preventDefault();addTier(${index}, this)}">
         </div>`)}
@@ -1374,7 +1387,7 @@
       <div class="meta-item" id="live-sel">${liveSelectionMarkup(m)}</div>
       <div class="meta-item"><div class="k">Cursor id</div><div class="v mono">${esc(m.cursorId || '—')}</div>${m.cursorId ? `<button class="meta-copy" data-copy="${attr(m.cursorId)}" onclick="copyText(this)">Copy id</button>` : ''}</div>
       <div class="meta-item"><div class="k">Provider</div><div class="v">${esc(m.provider || '—')}</div></div>
-      <div class="meta-item"><div class="k">Context</div><div class="v">${m.contextWindow ? fmtTokens(m.contextWindow) + ' default' : '—'}${(m.contextOptions && m.contextOptions.length) ? `<br><span class="muted">${contextLabel(m)} available</span>` : ''}</div></div>
+      <div class="meta-item"><div class="k">Context</div><div class="v">${m.contextWindow ? fmtTokens(m.contextWindow) + ' default' : '—'}${(m.contextOptions && m.contextOptions.length && contextLabel(m) !== fmtTokens(m.contextWindow)) ? `<br><span class="muted">${contextLabel(m)} available</span>` : ''}</div></div>
       <div class="meta-item"><div class="k">Status</div><div class="v"><span class="status"><span class="dot ${m.enabled === false ? 'warn' : 'ok'}"></span>${m.enabled === false ? 'Disabled' : 'Enabled'}</span></div></div>
     </div>`;
 
@@ -1418,7 +1431,7 @@
     const config = `<div class="panel"><div class="panel-body">
       <div class="section">
         <div class="section-title"><h3>Configuration file</h3><p>${META && META.error ? `Error: ${esc(META.error)}` : 'Changes apply to new requests immediately.'}${restart.length ? ` Restart required for: ${esc(restart.join(', '))}.` : ''}</p></div>
-        ${row('Path', 'Backups are written beside it on save.', `<div class="mono muted" style="padding:8px 0">${esc((META && META.path) || '—')}</div><div><button class="btn" onclick="copyPath(this)">Copy path</button></div>`)}
+        ${row('Path', 'Backups are written next to it.', `<div class="mono muted" style="padding:8px 0">${esc((META && META.path) || '—')}</div><div><button class="btn" onclick="copyPath(this)">Copy path</button></div>`)}
       </div>
       ${(META && META.warnings && META.warnings.length) ? `<ul class="warnings">${META.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     </div></div>`;
