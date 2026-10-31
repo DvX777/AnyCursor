@@ -71,6 +71,11 @@
   .nav-item svg { width: 17px; height: 17px; flex: none; color: #9aa0a8; }
   .nav-item.active svg { color: var(--ink-2); }
   .nav-item .n { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .nav-item .tag-new {
+    margin-left: 6px; padding: 1px 5px; border-radius: 4px;
+    background: #fdf3de; color: #8a5c00;
+    font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  }
   .side-foot { margin-top: auto; padding: 12px 8px 2px; border-top: 1px solid var(--line); }
   .cfg-label { font-size: 11px; color: var(--muted); }
   .cfg-row { display: flex; align-items: center; gap: 4px; margin-top: 3px; min-width: 0; }
@@ -204,15 +209,21 @@
   .overview-rail { position: sticky; top: 20px; }
 
   .usage-panel .panel-body { padding: 20px 20px 22px; }
-  .donut-wrap { position: relative; width: 184px; height: 184px; margin: 6px auto 18px; }
-  .donut { width: 184px; height: 184px; transform: rotate(-90deg); }
+  .donut-wrap { position: relative; width: 208px; height: 208px; margin: 2px auto 16px; }
+  .donut { position: absolute; left: 20px; top: 20px; width: 168px; height: 168px; transform: rotate(-90deg); }
   .donut circle { fill: none; stroke-width: 15; }
   .donut-center {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 1px; pointer-events: none;
+    position: absolute; left: 20px; top: 20px; width: 168px; height: 168px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; pointer-events: none;
   }
   .donut-center b { font-size: 26px; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
   .donut-center span { font-size: 11px; color: var(--muted); }
+  .donut-mark { position: absolute; transform: translate(-50%, -50%); }
+  .donut-mark .logo {
+    width: 24px; height: 24px; background: transparent; border: 0; box-shadow: none;
+  }
+  .donut-mark .logo svg { width: 20px; height: 20px; }
   .legend { display: flex; flex-direction: column; gap: 9px; }
   .lg-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
   .lg-row .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
@@ -519,7 +530,7 @@
       </button>
       <button class="nav-item" data-view="models" onclick="go('models')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 21 8l-9 5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>
-        Models <span class="n" id="nav-models"></span>
+        Models <span class="tag-new" id="nav-models-alert" hidden>new</span><span class="n" id="nav-models"></span>
       </button>
       <button class="nav-item" data-view="gateway" onclick="go('gateway')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18h4.3a3 3 0 0 0 3-3V8.2"/></svg>
@@ -772,6 +783,7 @@
     renderTools();
     renderBody();
     renderCounts();
+    renderDiscoveredBadge();
   }
 
   function renderCounts() {
@@ -1027,7 +1039,20 @@
         <div class="panel-body"><div class="usage-empty">No requests yet.<br>Send one from Cursor and it shows up here.</div></div></div>`;
     }
     const C = 2 * Math.PI * 54;
+    const BOX = 208;
+    const RING = (54 / 140) * 168 + 18;
     let offset = 0;
+    let walked = 0;
+    const marks = u.models.map((entry) => {
+      const share = entry.requests / total;
+      const angle = -Math.PI / 2 + walked * 2 * Math.PI;
+      walked += share;
+      const model = (CFG.models || []).find((x) => x.cursorId === entry.id || x.id === entry.id)
+        || { id: entry.id, displayName: modelName(entry.id) };
+      const x = BOX / 2 + RING * Math.cos(angle);
+      const y = BOX / 2 + RING * Math.sin(angle);
+      return `<span class="donut-mark" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${modelIcon(model)}</span>`;
+    }).join('');
     const arcs = u.models.map((m, i) => {
       const share = m.requests / total;
       const len = Math.max(0, share * C - 1.5);
@@ -1054,6 +1079,7 @@
             ${arcs}
           </svg>
           <div class="donut-center"><b>${total}</b><span>request${total === 1 ? '' : 's'}</span></div>
+          ${marks}
         </div>
         <div class="legend">${legend}</div>
       </div>
@@ -1472,6 +1498,13 @@
     const known = knownModelIds();
     const dismissed = dismissedIds();
     return ((STATUS && STATUS.discovered) || []).filter((entry) => !known.has(entry.id) && !dismissed.has(entry.id));
+  }
+  function renderDiscoveredBadge() {
+    const el = document.getElementById('nav-models-alert');
+    if (!el) return;
+    const count = discoveredModels().length;
+    el.hidden = !count;
+    el.title = count ? `${count} model id${count === 1 ? '' : 's'} seen in Cursor, not configured` : '';
   }
   function discoveredPanel() {
     const items = discoveredModels();
@@ -1902,6 +1935,7 @@
       $('top-dot').className = 'dot ' + (s.ok ? 'ok' : 'bad');
       $('top-state').textContent = s.ok ? 'Gateway ready' : 'Config error';
       if (s.version) $('rail-version') && ($('rail-version').textContent = 'v' + s.version);
+      renderDiscoveredBadge();
       const key = JSON.stringify(s.selections || {});
       if (key !== lastSelections) {
         lastSelections = key;
