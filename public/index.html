@@ -59,9 +59,9 @@
     background: transparent; font: inherit; color: var(--ink); cursor: default; text-align: left;
   }
   .workspace .logo {
-    width: 30px; height: 30px; border-radius: 8px; background: #eaf1ff; display: grid; place-items: center; flex: none;
+    width: 32px; height: 32px; border-radius: 9px; background: #eef3ff; display: grid; place-items: center; flex: none;
   }
-  .workspace .logo img { width: 20px; height: 20px; display: block; }
+  .workspace .logo img { width: 24px; height: 24px; display: block; }
   .workspace .n { font-size: 13.5px; font-weight: 500; letter-spacing: -.01em; }
   .workspace .chev { margin-left: auto; color: #b9bec6; width: 15px; height: 15px; }
 
@@ -190,7 +190,7 @@
   .flow .arrow svg { width: 15px; height: 15px; }
 
   /* ---------------- tables ---------------- */
-  .table { width: 100%; border-collapse: collapse; }
+  .table { width: 100%; max-width: 1180px; border-collapse: collapse; }
   .table th {
     padding: 9px 12px; text-align: left; font-size: 11.5px; font-weight: 400; color: #7f858e;
     border-bottom: 1px solid var(--line); white-space: nowrap;
@@ -198,7 +198,7 @@
   .table th.num, .table td.num { text-align: right; }
   .table td.num { font-variant-numeric: tabular-nums; color: var(--ink-2); }
 
-  .table-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; }
+  .table-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; max-width: 1180px; }
   .table-title h2 { margin: 0; font-size: 13.5px; font-weight: 500; letter-spacing: -.01em; }
   .table-title .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .table-title .spacer { flex: 1; }
@@ -212,6 +212,7 @@
   .table tbody tr { cursor: pointer; }
   .table tbody tr:hover td { background: #fafbfc; }
   .table th:first-child, .table td:first-child { padding-left: 4px; }
+  .table th:first-child { padding-left: 45px; }
   .table th:last-child, .table td:last-child { padding-right: 4px; }
   .cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
   .cell .logo {
@@ -461,7 +462,7 @@
 <body>
   <aside class="side">
     <div class="workspace">
-      <span class="logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA0CAMAAADypuvZAAABIFBMVEUQWK8JU+CRmq0cYu8TKVgQOZUiOVd7i6SgsdbGztu7w9MfKkgjME1WXnIUgeIQd8oKUOsbIDMcODgTgdgvQl4AOL8AAADl7PcQd/0IV/wNZ/wYIjsdKEMThv0oNFEhLEgRGjLv9PrJ2PcDTfmxx/cJWMsAf/8Wkv4cKEUAqv/W4/gnNFIAVf8A//8DAwgAAH+71fkAAP8GS9EMdc1veJAOaOkFDSSQl6YSeeUAVaoHTu54pPgKaMkNR9EnM1IVh+8OabM0d/ktO1oMZ7gOaNFVVVUAVVVNifdYkfsUgeM/Pz8uQ2Q1QFsQc+mUlZeOs/kHPK6stspjbYcAf38nOFIkOVAEUfAiLkxFTGEiLUkhL0tZaZAAAFUSFRYESOYPh+wqUIUdAAAAYHRSTlMibf/jFf////3//5RP/44tj2cJTxskAP/+/v7+/v3+/v7//vz/UQL+bgP/dQMB/wL+AU5T/7X//5IDrf9WMtHTG/+JKDQDA///bgT/+af//w//+wIvEc2y/3M2/gP/jrbw3ce5AAADDklEQVR42o3WeVcaMRAA8EW8e9gzbPbKBhAEBUTxoLZVsa23VWvVqtXv/y062dwQsPPPvgf5vdnNzJvEQ65YqiCUy31DqFZx/e05fuvCypVr7PunQ9ggqjDyCWNAgjWeQ5UlQTjy/c05WNQYhRj5wolEsb+5A9naw1ArIyVsIRfTqC1ISapAqTg+hHW1AcTIx0eD2AjYuGaeIt4biwAKTFTdPkSoUVOofY7Q+SMsMwkYWwFbBdblCLKc51xEqVio6vZ7YBXktRAaz+H+CFyIsSfI1oZMuWtsf8wIFVfjpznkfckHg0t1WHsBAY/A8xbup5fLOpbLxcFYZlGfiiYnj1mGFe9tSjqwsCwX16k7CvSs2WxO4AwtRCFjdUEKQ4NuNP9GWKEwTJOxYn0k4ShvojBNk40CLTyDJvh2zQvE2MkYHcXoWYr7EWO3FyMYPROJAhMx9mp2KKPTJVFKhiKbzQxhdFdWHxCx1XraKboY/VmSHSOQYmkKLHQwWg9Uk2WIs0goiHUy1l8yeqAbkyGIfpU2b+1UtIxlAwf+vPeH8FCM50r6Mu0aLQ8oIUQ7qfoQ3dKEoUWNsmyuTLRoEI5YKCa+KSV146Povmn8zwIJpkxKitQokWVijSA0SdNIo6xE5qQwEInUhkOEBspKZEwXhYjR7BmaoXaJjEyrAhndJ+isyrSrhq2FYKMjq20BXVBZopKqqxh9q14vEU1k9m0YSUSL5lSX6C4ykQwSTgu0jwM7U3V7z0PjLxyMhGOU70LJPj6q8esdfgAAIxHRlJBEoEIe2yMdCGrAAfADobsb1Uf8kUQbVO+CervNPTjMG/wkfEDo6oYYnQsbyjLJXeBV8hmp/VLHZwte8uVX0YC8cFNU70KW6FQSfVA/CKb6EBD0gkJrniLmlQA+7WhRMdKhbGhJYl+SzMsHsHeKdSgMrSA74tfm+Y1pyDXnO0K/s2Y8SS7l0BoggxcqxnrJ8XFyT7ewJN1nr25HCH3onUxewlwI8i7iviRCtqve5QFmWRrd/7xZohZk83KMLDlvq/8AZ1AvEvmHa4kAAAAASUVORK5CYII=" alt=""></span>
+      <span class="logo"><img src="data:image/png;base64,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" alt=""></span>
       <span class="n">AnyCursor</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 9 6 6 6-6"/></svg>
     </div>
@@ -1012,12 +1013,12 @@
     $('page-body').innerHTML = `${summary}
       <div class="table-title"><h2>Models</h2><span class="count">${models.length}</span><span class="spacer"></span><button class="link" onclick="go('models')">Open models</button></div>
       <table class="table" style="margin-bottom:30px">
-        <thead><tr><th style="width:33%">Model</th><th class="hide-sm" style="width:17%">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:86px">Context</th><th style="width:112px">Status</th><th></th></tr></thead>
+        <thead><tr><th style="width:300px">Model</th><th class="hide-sm" style="width:150px">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:86px">Context</th><th style="width:112px">Status</th><th></th></tr></thead>
         <tbody>${modelRows || '<tr><td colspan="6"><div class="empty"><strong>No models yet</strong>Your provider is ready — add a model to expose it in Cursor&#39;s picker.<div style="margin-top:14px"><button class="pill" onclick="addModel()">+ Add model</button></div></div></td></tr>'}</tbody>
       </table>
       <div class="table-title"><h2>Providers</h2><span class="count">${providers.length}</span><span class="spacer"></span><button class="link" onclick="go('providers')">Open providers</button></div>
       <table class="table">
-        <thead><tr><th style="width:28%">Provider</th><th class="hide-sm">Endpoint</th><th class="num" style="width:92px">Models</th><th style="width:132px">Credentials</th><th></th></tr></thead>
+        <thead><tr><th style="width:320px">Provider</th><th class="hide-sm">Endpoint</th><th class="num" style="width:92px">Models</th><th style="width:132px">Credentials</th><th></th></tr></thead>
         <tbody>${providerRows || '<tr><td colspan="5"><div class="empty"><strong>No providers yet</strong>Add one to start routing your own models.</div></td></tr>'}</tbody>
       </table>
       ${warnings.length ? `<ul class="warnings">${warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
@@ -1093,7 +1094,7 @@
       </tr>`;
     }).join('');
     $('page-body').innerHTML = `<table class="table">
-      <thead><tr><th style="width:30%">Provider</th><th style="width:18%">Type</th><th class="hide-sm">Endpoint</th><th class="num" style="width:92px">Models</th><th style="width:132px">Credentials</th><th></th></tr></thead>
+      <thead><tr><th style="width:300px">Provider</th><th style="width:170px">Type</th><th class="hide-sm">Endpoint</th><th class="num" style="width:92px">Models</th><th style="width:132px">Credentials</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
     filterRows();
   }
@@ -1319,7 +1320,7 @@
       </tr>`;
     }).join('');
     $('page-body').innerHTML = `<table class="table">
-      <thead><tr><th style="width:33%">Model</th><th class="hide-sm" style="width:17%">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:86px">Context</th><th style="width:112px">Status</th><th></th></tr></thead>
+      <thead><tr><th style="width:300px">Model</th><th class="hide-sm" style="width:150px">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:86px">Context</th><th style="width:112px">Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
     filterRows();
   }
