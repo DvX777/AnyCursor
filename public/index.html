@@ -132,6 +132,42 @@
   }
   .icon-btn:hover { background: #f7f8f9; }
   .icon-btn svg { width: 16px; height: 16px; }
+  .notif-wrap { position: relative; }
+  .notif-dot {
+    position: absolute; top: 6px; right: 6px; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 2px #fff;
+  }
+  .notif-panel {
+    position: absolute; right: 0; top: 44px; z-index: 80; width: 330px;
+    background: #fff; border: 1px solid var(--line-2); border-radius: 12px;
+    box-shadow: 0 20px 44px -18px rgba(16, 17, 20, .28), 0 2px 6px -2px rgba(16, 17, 20, .08);
+    overflow: hidden;
+  }
+  .notif-head {
+    padding: 11px 14px; border-bottom: 1px solid var(--line);
+    font-size: 12.5px; font-weight: 500;
+  }
+  .notif-list { max-height: 320px; overflow: auto; }
+  .notif-item { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .notif-item:last-child { border-bottom: 0; }
+  .notif-item .ico {
+    width: 26px; height: 26px; border-radius: 999px; flex: none; display: grid; place-items: center;
+    background: #fdf3de; color: #8a5c00;
+  }
+  .notif-item .ico svg { width: 13px; height: 13px; }
+  .notif-item .body { min-width: 0; flex: 1; }
+  .notif-item .title { font-size: 12.5px; font-weight: 500; }
+  .notif-item .detail {
+    margin-top: 1px; font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .notif-item .when { margin-top: 3px; font-size: 11px; color: var(--muted); }
+  .notif-item .go {
+    align-self: center; padding: 0; border: 0; background: none;
+    color: var(--blue); font: inherit; font-size: 11.5px; cursor: pointer;
+  }
+  .notif-empty { padding: 22px 14px; text-align: center; color: var(--muted); font-size: 12.5px; }
+
   .avatar {
     width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center;
     background: #e8eefb; color: #2b4a86; font-size: 12px; font-weight: 600; letter-spacing: .01em;
@@ -564,9 +600,13 @@
       </label>
       <div class="top-actions">
         <span class="status-pill"><span class="dot" id="top-dot"></span><span id="top-state">Connecting…</span></span>
-        <button class="icon-btn" title="Copy gateway address" onclick="copyGateway(this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>
-        </button>
+        <div class="notif-wrap">
+          <button class="icon-btn" id="notif-btn" title="Notifications" onclick="toggleNotifs(event)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10.5 20a2 2 0 0 0 3 0"/></svg>
+            <span class="notif-dot" id="notif-dot" hidden></span>
+          </button>
+          <div class="notif-panel" id="notif-panel" hidden></div>
+        </div>
         <button class="icon-btn" title="Reload configuration" onclick="reloadConfig()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>
         </button>
@@ -724,6 +764,67 @@
   let dirty = false;
   let query = '';
   let lastSelections = '';
+  let uptimeBase = 0;
+  let uptimeAt = 0;
+
+  function uptimeNow() {
+    return uptimeBase + (uptimeAt ? Date.now() - uptimeAt : 0);
+  }
+  function tickUptime() {
+    document.querySelectorAll('[data-uptime]').forEach((el) => { el.textContent = fmtUptime(uptimeNow()); });
+  }
+
+  /* ---------- notifications ---------- */
+  const NOTIFS = [];
+  let notifSeenAt = 0;
+  function notify(id, title, detail, at) {
+    if (!id || NOTIFS.some((n) => n.id === id)) return;
+    NOTIFS.unshift({ id, title, detail, at: at || new Date().toISOString() });
+    if (NOTIFS.length > 30) NOTIFS.length = 30;
+  }
+  function unreadCount() {
+    return NOTIFS.filter((n) => Date.parse(n.at) > notifSeenAt).length;
+  }
+  function renderNotifs() {
+    const dot = document.getElementById('notif-dot');
+    if (dot) dot.hidden = unreadCount() === 0;
+    const panel = document.getElementById('notif-panel');
+    if (!panel || panel.hidden) return;
+    if (!NOTIFS.length) {
+      panel.innerHTML = '<div class="notif-head">Notifications</div><div class="notif-empty">Nothing yet. Gateway events and newly detected models appear here.</div>';
+      return;
+    }
+    panel.innerHTML = `<div class="notif-head">Notifications</div><div class="notif-list">${NOTIFS.map((n) => `
+      <div class="notif-item">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span class="body">
+          <div class="title">${esc(n.title)}</div>
+          <div class="detail">${esc(n.detail)}</div>
+          <div class="when">${esc(ago(n.at))}</div>
+        </span>
+        <button class="go" onclick="openFromNotif()">Review</button>
+      </div>`).join('')}</div>`;
+  }
+  function toggleNotifs(event) {
+    if (event) event.stopPropagation();
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    const open = !panel.hidden;
+    document.querySelectorAll('.sel.open').forEach((x) => x.classList.remove('open'));
+    panel.hidden = open;
+    if (!open) {
+      notifSeenAt = Date.now();
+      renderNotifs();
+    }
+  }
+  function openFromNotif() {
+    document.getElementById('notif-panel').hidden = true;
+    go('models');
+  }
+  document.addEventListener('click', () => {
+    const panel = document.getElementById('notif-panel');
+    if (panel && !panel.hidden) panel.hidden = true;
+  });
   let typeFilter = '';
   let statusFilter = '';
   let toastTimer = null;
@@ -1098,7 +1199,7 @@
     const summary = `<div class="summary">
       <div class="stat"><div class="k">Models routed</div><div class="v">${models.length}</div><div class="f">${enabled} enabled · ${models.length - enabled} off</div></div>
       <div class="stat"><div class="k">Providers</div><div class="v">${providers.length}</div><div class="f">${providers.length ? 'credentials stored locally' : 'none configured'}</div></div>
-      <div class="stat"><div class="k">Uptime</div><div class="v">${fmtUptime(s.uptimeMs || 0)}</div><div class="f">${s.routing && s.routing.nativePassthrough ? 'native passthrough on' : 'passthrough off'}</div></div>
+      <div class="stat"><div class="k">Uptime</div><div class="v" data-uptime>${fmtUptime(uptimeNow())}</div><div class="f">${s.routing && s.routing.nativePassthrough ? 'native passthrough on' : 'passthrough off'}</div></div>
       <div class="flow-wrap">
         <div class="flow">
           <div class="node"><div class="k">Editor</div><div class="v">Cursor</div></div>
@@ -1932,6 +2033,12 @@
       const res = await fetch('/api/status', { cache: 'no-store' });
       const s = await res.json();
       STATUS = s;
+      uptimeBase = s.uptimeMs || 0;
+      uptimeAt = Date.now();
+      for (const entry of s.discovered || []) {
+        notify(`model:${entry.id}`, 'New model detected', entry.id, entry.firstAt || entry.lastAt);
+      }
+      renderNotifs();
       $('top-dot').className = 'dot ' + (s.ok ? 'ok' : 'bad');
       $('top-state').textContent = s.ok ? 'Gateway ready' : 'Config error';
       if (s.version) $('rail-version') && ($('rail-version').textContent = 'v' + s.version);
@@ -1969,6 +2076,7 @@
 
   loadConfig();
   setInterval(updateStatus, 5000);
+  setInterval(tickUptime, 1000);
 </script>
 </body>
 </html>
