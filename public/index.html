@@ -71,9 +71,20 @@
   .nav-item svg { width: 17px; height: 17px; flex: none; color: #9aa0a8; }
   .nav-item.active svg { color: var(--ink-2); }
   .nav-item .n { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .side-foot { margin-top: auto; padding: 10px 8px 4px; }
-  .side-foot .row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); }
-  .side-foot .addr { margin-top: 3px; color: var(--muted); }
+  .side-foot { margin-top: auto; padding: 12px 8px 2px; border-top: 1px solid var(--line); }
+  .cfg-label { font-size: 11px; color: var(--muted); }
+  .cfg-row { display: flex; align-items: center; gap: 4px; margin-top: 3px; min-width: 0; }
+  .cfg-name {
+    min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11.5px; color: var(--ink-2);
+  }
+  .cfg-copy {
+    width: 22px; height: 22px; display: grid; place-items: center; flex: none;
+    padding: 0; border: 0; border-radius: 5px; background: none; color: var(--muted); cursor: pointer;
+  }
+  .cfg-copy:hover { background: var(--field); color: var(--ink); }
+  .cfg-copy svg { width: 13px; height: 13px; }
+  .cfg-ver { margin-top: 5px; font-size: 10.5px; color: var(--muted); }
   .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex: none; }
   .dot.ok { background: var(--green); }
   .dot.bad { background: var(--red); }
@@ -189,7 +200,10 @@
   .table th.num, .table td.num { text-align: right; }
   .table td.num { font-variant-numeric: tabular-nums; color: var(--ink-2); }
 
-  .table-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; max-width: 1180px; }
+  .table-title {
+    display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; max-width: 1180px;
+    padding-top: 20px; border-top: 1px solid var(--line);
+  }
   .table-title h2 { margin: 0; font-size: 13.5px; font-weight: 500; letter-spacing: -.01em; }
   .table-title .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .table-title .spacer { flex: 1; }
@@ -479,8 +493,14 @@
     </nav>
 
     <div class="side-foot">
-      <div class="row"><span class="dot" id="rail-dot"></span><span id="rail-state">Connecting…</span></div>
-      <div class="addr mono"><span id="rail-addr">—</span> · <span id="rail-version">v—</span></div>
+      <div class="cfg-label">Config file</div>
+      <div class="cfg-row">
+        <span class="cfg-name mono" id="rail-cfg" title="">config.json</span>
+        <button class="cfg-copy" title="Copy full path" onclick="copyConfig(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+      </div>
+      <div class="cfg-ver mono" id="rail-version">v—</div>
     </div>
   </aside>
 
@@ -998,7 +1018,7 @@
 
     $('page-body').innerHTML = `${summary}
       <div class="table-title"><h2>Models</h2><span class="count">${models.length}</span><span class="spacer"></span><button class="link" onclick="go('models')">Open models</button></div>
-      <table class="table" style="margin-bottom:30px">
+      <table class="table">
         <thead><tr><th style="width:300px">Model</th><th class="hide-sm" style="width:150px">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:96px">Context</th><th style="width:120px">Status</th><th style="width:34px"></th></tr></thead>
         <tbody>${modelRows || '<tr><td colspan="6"><div class="empty"><strong>No models yet</strong>Your provider is ready — add a model to expose it in Cursor&#39;s picker.<div style="margin-top:14px"><button class="pill" onclick="addModel()">+ Add model</button></div></div></td></tr>'}</tbody>
       </table>
@@ -1426,6 +1446,16 @@
     $('page-body').innerHTML = listener + routing + config;
   }
 
+  async function copyConfig(btn) {
+    const text = (META && META.path) || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.style.color = 'var(--green)';
+      setTimeout(() => { btn.style.color = ''; }, 1200);
+    } catch (_) { toast('Clipboard is blocked by the browser.', 'bad'); }
+  }
+
   async function copyText(btn) {
     try {
       await navigator.clipboard.writeText(btn.dataset.copy || '');
@@ -1485,6 +1515,11 @@
       markDirty(false);
       render();
       updateStatus();
+      if (META.path) {
+        const parts = String(META.path).split(/[\\/]/);
+        $('rail-cfg').textContent = parts[parts.length - 1] || META.path;
+        $('rail-cfg').title = META.path;
+      }
       if (META.error) toast(esc(META.error), 'bad', 'Config error');
     } catch (error) {
       toast('Cannot reach the gateway: ' + esc(error.message), 'bad', 'Offline');
@@ -1545,9 +1580,6 @@
       const res = await fetch('/api/status', { cache: 'no-store' });
       const s = await res.json();
       STATUS = s;
-      $('rail-dot').className = 'dot ' + (s.ok ? 'ok' : 'bad');
-      $('rail-state').textContent = s.ok ? 'Ready' : 'Config error';
-      $('rail-addr').textContent = `${s.gateway.host}:${s.gateway.port}`;
       $('top-dot').className = 'dot ' + (s.ok ? 'ok' : 'bad');
       $('top-state').textContent = s.ok ? 'Gateway ready' : 'Config error';
       if (s.version) $('rail-version') && ($('rail-version').textContent = 'v' + s.version);
@@ -1562,8 +1594,6 @@
         renderBody();
       }
     } catch (_) {
-      $('rail-dot').className = 'dot bad';
-      $('rail-state').textContent = 'Offline';
       $('top-dot').className = 'dot bad';
       $('top-state').textContent = 'Offline';
     }
