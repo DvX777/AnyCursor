@@ -259,6 +259,73 @@
   .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
   .checks { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 
+  /* custom select */
+  .sel { position: relative; width: 100%; max-width: 420px; }
+  .sel-btn {
+    display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px;
+    border: 1px solid var(--line-2); border-radius: 10px; background: #fff;
+    font: inherit; font-size: 13.5px; color: var(--ink); cursor: pointer; text-align: left;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .sel-btn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sel-btn > svg { width: 14px; height: 14px; color: #9aa0a8; flex: none; transition: transform .15s; }
+  .sel-btn:hover { border-color: #d3d8de; }
+  .sel.open { z-index: 70; }
+  .sel.open .sel-btn { border-color: #b9c5d8; box-shadow: 0 0 0 3px rgba(16, 17, 20, .04); }
+  .sel.open .sel-btn > svg { transform: rotate(180deg); }
+  .sel-menu {
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; min-width: 100%;
+    padding: 5px; border: 1px solid var(--line-2); border-radius: 12px; background: #fff;
+    box-shadow: 0 18px 40px -16px rgba(16, 17, 20, .24), 0 2px 6px -2px rgba(16, 17, 20, .08);
+    display: none; max-height: 280px; overflow: auto;
+  }
+  .sel.open .sel-menu { display: block; }
+  .sel-opt {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 9px;
+    border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13.5px;
+    color: var(--ink); text-align: left; cursor: pointer; white-space: nowrap;
+  }
+  .sel-opt:hover { background: #f5f6f7; }
+  .sel-opt .tick { margin-left: auto; width: 14px; height: 14px; color: var(--blue); opacity: 0; }
+  .sel-opt.on .tick { opacity: 1; }
+  .sel.pill { width: auto; max-width: none; display: inline-block; }
+  .sel.pill .sel-btn { height: 34px; border-radius: 999px; padding: 0 13px; font-size: 13px; }
+  .sel.pill .sel-menu { min-width: 210px; }
+
+  /* chip editor */
+  .chips {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 6px;
+    min-height: 38px; border: 1px solid var(--line-2); border-radius: 10px; background: #fff;
+    transition: border-color .12s, box-shadow .12s; cursor: text;
+  }
+  .chips:focus-within { border-color: #b9c5d8; box-shadow: 0 0 0 3px rgba(16, 17, 20, .04); }
+  .chip-item {
+    display: inline-flex; align-items: center; gap: 4px; height: 25px; padding: 0 5px 0 10px;
+    border-radius: 999px; background: #f1f3f6; font-size: 12px; color: var(--ink-2);
+  }
+  .chip-item b { font-weight: 500; color: var(--ink); }
+  .chip-item button {
+    width: 16px; height: 16px; display: grid; place-items: center; padding: 0;
+    border: 0; border-radius: 999px; background: transparent; color: #8c929b;
+    font-size: 13px; line-height: 1; cursor: pointer;
+  }
+  .chip-item button:hover { background: #e2e6ea; color: var(--ink); }
+  .chip-input {
+    flex: 1; min-width: 120px; height: 25px; border: 0; background: none; color: var(--ink);
+    font: inherit; font-size: 13px; padding: 0 4px;
+  }
+  .chip-input:focus { outline: none; }
+  .chip-input::placeholder { color: #a8adb5; }
+
+  /* segmented control */
+  .seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 11px; background: #f3f4f6; align-self: flex-start; }
+  .seg-btn {
+    height: 28px; padding: 0 13px; border: 0; border-radius: 8px; background: transparent;
+    font: inherit; font-size: 12.5px; color: var(--ink-2); cursor: pointer; transition: background .12s, color .12s;
+  }
+  .seg-btn:hover { color: var(--ink); }
+  .seg-btn.on { background: #fff; color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(16, 17, 20, .1); }
+
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     height: 34px; padding: 0 14px; border-radius: 999px;
@@ -580,39 +647,16 @@
     const tools = $('page-tools');
     if (route.view === 'providers' && !route.provider) {
       tools.innerHTML = `
-        <div class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-          <select onchange="typeFilter=this.value;filterRows()">
-            <option value="">All types</option>
-            ${TYPES.map((t) => `<option value="${t}" ${typeFilter === t ? 'selected' : ''}>${t}</option>`).join('')}
-          </select>
-        </div>
-        <div class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="m9 12 2 2 4-4"/></svg>
-          <select onchange="statusFilter=this.value;filterRows()">
-            <option value="">Any credentials</option>
-            <option value="ok" ${statusFilter === 'ok' ? 'selected' : ''}>Stored</option>
-            <option value="warn" ${statusFilter === 'warn' ? 'selected' : ''}>Credential source</option>
-            <option value="bad" ${statusFilter === 'bad' ? 'selected' : ''}>Missing</option>
-          </select>
-        </div>
+        ${select([{ value: '', label: 'All types' }, ...TYPES.map((t) => ({ value: t, label: t }))], typeFilter, (v) => { typeFilter = v; filterRows(); }, { className: 'pill' })}
+        ${select([{ value: '', label: 'Any credentials' }, { value: 'ok', label: 'Stored' }, { value: 'warn', label: 'Credential source' }, { value: 'bad', label: 'Missing' }], statusFilter, (v) => { statusFilter = v; filterRows(); }, { className: 'pill' })}
         <span class="spacer"></span>
         <span class="muted" style="font-size:12.5px" id="result-count"></span>`;
       return;
     }
     if (route.view === 'models' && route.model === null) {
       tools.innerHTML = `
-        <div class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-          <select onchange="typeFilter=this.value;filterRows()">
-            <option value="">All providers</option>
-            ${Object.keys(CFG.providers || {}).map((n) => `<option value="${n}" ${typeFilter === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="m9 12 2 2 4-4"/></svg>
-          <select onchange="statusFilter=this.value;filterRows()">
-            <option value="">Any status</option>
-            <option value="ok" ${statusFilter === 'ok' ? 'selected' : ''}>Enabled</option>
-            <option value="warn" ${statusFilter === 'warn' ? 'selected' : ''}>Disabled</option>
-          </select>
-        </div>
+        ${select([{ value: '', label: 'All providers' }, ...Object.keys(CFG.providers || {}).map((n) => ({ value: n, label: n }))], typeFilter, (v) => { typeFilter = v; filterRows(); }, { className: 'pill' })}
+        ${select([{ value: '', label: 'Any status' }, { value: 'ok', label: 'Enabled' }, { value: 'warn', label: 'Disabled' }], statusFilter, (v) => { statusFilter = v; filterRows(); }, { className: 'pill' })}
         <span class="spacer"></span>
         <span class="muted" style="font-size:12.5px" id="result-count"></span>`;
       return;
@@ -637,6 +681,76 @@
   }
   function check(label, checked, handler) {
     return `<label class="check"><input type="checkbox" ${checked ? 'checked' : ''} onchange="${handler}"> ${esc(label)}</label>`;
+  }
+
+  /* ---------- custom select ---------- */
+  let selSeq = 0;
+  const selRegistry = new Map();
+  function select(options, value, onChange, opts = {}) {
+    const id = 'sel' + (++selSeq);
+    selRegistry.set(id, { options, value, onChange });
+    return selectMarkup(id, opts.className || '');
+  }
+  function selectMarkup(id, extra) {
+    const entry = selRegistry.get(id);
+    const { options } = entry;
+    const cur = options.find((o) => o.value === entry.value) || options[0] || { value: '', label: '—' };
+    return `<div class="sel ${extra}" id="${id}">
+      <button type="button" class="sel-btn" onclick="toggleSelect('${id}', event)" aria-haspopup="listbox">
+        <span>${esc(cur.label)}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="sel-menu" role="listbox">
+        ${options.map((o) => `<button type="button" class="sel-opt${o.value === cur.value ? ' on' : ''}" onclick="pickSelect('${id}', '${attr(o.value)}')">
+          <span>${esc(o.label)}</span>
+          <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 13 4 4L19 7"/></svg>
+        </button>`).join('')}
+      </div>
+    </div>`;
+  }
+  function toggleSelect(id, event) {
+    if (event) event.stopPropagation();
+    const el = document.getElementById(id);
+    if (!el) return;
+    const open = el.classList.contains('open');
+    document.querySelectorAll('.sel.open').forEach((x) => x.classList.remove('open'));
+    if (!open) el.classList.add('open');
+  }
+  function pickSelect(id, value) {
+    const entry = selRegistry.get(id);
+    if (!entry) return;
+    entry.value = value;
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('open');
+      const cur = entry.options.find((o) => o.value === value);
+      const label = el.querySelector('.sel-btn span');
+      if (label && cur) label.textContent = cur.label;
+      el.querySelectorAll('.sel-opt').forEach((b, i) => b.classList.toggle('on', entry.options[i].value === value));
+    }
+    if (entry.onChange) entry.onChange(value);
+  }
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.sel.open').forEach((x) => x.classList.remove('open'));
+  });
+
+  /* ---------- chip editors ---------- */
+  function focusChip(id) {
+    const el = document.getElementById(id);
+    if (el) el.focus();
+  }
+  function fmtTokens(n) {
+    const v = Number(n) || 0;
+    if (!v) return '—';
+    if (v >= 1000000) return (v / 1000000).toFixed(v % 1000000 ? 1 : 0) + 'M';
+    if (v >= 1000) return Math.round(v / 1000) + 'K';
+    return String(v);
+  }
+  function contextLabel(m) {
+    if (!m) return '—';
+    const opts = (m.contextOptions || []).map((o) => Number(o.value) || 0);
+    const max = Math.max(Number(m.contextWindow) || 0, ...opts);
+    return max ? fmtTokens(max) : '—';
   }
 
   /* ---------------- overview ---------------- */
@@ -676,7 +790,7 @@
           <div class="grow"><div class="name">${esc(m.displayName || m.id || 'model')}</div><div class="meta mono">${esc(m.model || '')}</div></div></div></td>
         <td class="muted hide-sm">${esc(m.provider || '')}</td>
         <td class="hide-sm">${caps.map((c) => `<span class="tag">${c}</span>`).join(' ') || '<span class="muted">—</span>'}</td>
-        <td class="hide-sm muted">${m.contextWindow ? Math.round(m.contextWindow / 1000) + 'k' : '—'}</td>
+        <td class="hide-sm muted">${contextLabel(m)}</td>
         <td><span class="status"><span class="dot ${m.enabled === false ? 'warn' : 'ok'}"></span>${m.enabled === false ? 'Disabled' : 'Enabled'}</span></td>
         <td class="chev-cell"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></td>
       </tr>`;
@@ -812,7 +926,7 @@
     const form = `<div class="panel"><div class="panel-body">
       <div class="section">
         <div class="section-title"><h3>Connection</h3><p>Where requests for this provider's models are sent.</p></div>
-        ${row('Type', 'Request and response protocol.', `<select onchange="setProviderType(route.provider, this.value)">${typeOptions}</select>`)}
+        ${row('Type', 'Request and response protocol.', select(TYPES.map((t) => ({ value: t, label: t })), p.type, (v) => setProviderType(route.provider, v)))}
         ${row('Base URL', 'Root of the API, without the endpoint path.', textInput(p.baseUrl || '', `setProvider(route.provider, 'baseUrl', this.value)`, { placeholder: 'https://api.example.com/v1' }))}
         ${row('Endpoint path', 'Appended to the base URL for chat requests.', textInput(p.endpoint || '', `setProvider(route.provider, 'endpoint', this.value)`, { placeholder: '/chat/completions' }))}
         ${isAzure ? row('Deployment', 'Azure deployment name.', textInput(p.deployment || '', `setProvider(route.provider, 'deployment', this.value)`)) : ''}
@@ -867,56 +981,96 @@
     markDirty();
   }
   function tierLabel(id) { return id ? id.charAt(0).toUpperCase() + id.slice(1) : id; }
-  function effortText(model) {
-    if (!model || !model.effort || !Array.isArray(model.effort.tiers)) return '';
-    return model.effort.tiers.map((t) => `${t.id}:${t.label || tierLabel(t.id)}`).join(', ');
-  }
-  function contextText(model) {
-    if (!model || !Array.isArray(model.contextOptions)) return '';
-    return model.contextOptions.map((c) => `${c.id}:${c.value}`).join(', ');
-  }
-  function setEffortText(index, text) {
-    const m = modelAt(index);
-    const tiers = String(text).split(',').map((part) => part.trim()).filter(Boolean).map((part) => {
-      const [id, ...rest] = part.split(':');
-      const tierId = id.trim();
-      return { id: tierId, label: (rest.join(':').trim() || tierLabel(tierId)), value: tierId };
-    });
-    if (!tiers.length) delete m.effort;
-    else {
-      const previous = m.effort || {};
-      m.effort = {
-        tiers,
-        default: tiers.some((t) => t.id === previous.default) ? previous.default : tiers[0].id,
-        requestField: previous.requestField || 'reasoning_effort',
-      };
-    }
-    markDirty();
-    renderBody();
-  }
   function setEffortDefault(index, value) {
     const m = modelAt(index);
     if (!m.effort) return;
     m.effort.default = value;
     markDirty();
+    renderBody();
+  }
+  function addTier(index, input) {
+    const raw = String(input.value || '').trim();
+    if (!raw) return;
+    const [idPart, ...rest] = raw.split(':');
+    const id = idPart.trim();
+    if (!id) return;
+    const m = modelAt(index);
+    m.effort = m.effort || { tiers: [], default: id, requestField: 'reasoning_effort' };
+    if (!m.effort.tiers.some((t) => t.id === id)) {
+      m.effort.tiers.push({ id, label: rest.join(':').trim() || tierLabel(id), value: id });
+    }
+    if (!m.effort.default) m.effort.default = id;
+    markDirty();
+    renderBody();
+    focusChip('tier-input-' + index);
+  }
+  function removeTier(index, tierIndex) {
+    const m = modelAt(index);
+    if (!m.effort) return;
+    m.effort.tiers.splice(tierIndex, 1);
+    if (!m.effort.tiers.length) delete m.effort;
+    else if (!m.effort.tiers.some((t) => t.id === m.effort.default)) m.effort.default = m.effort.tiers[0].id;
+    markDirty();
+    renderBody();
+  }
+  function addContext(index, input) {
+    const raw = String(input.value || '').trim();
+    if (!raw) return;
+    const [idPart, valuePart] = raw.split(':');
+    const id = idPart.trim();
+    let value = Number(String(valuePart || '').replace(/[^0-9]/g, ''));
+    if (!value) value = parseSize(id);
+    if (!id || !value) return;
+    const m = modelAt(index);
+    m.contextOptions = m.contextOptions || [];
+    if (!m.contextOptions.some((o) => o.id === id)) {
+      m.contextOptions.push({ id, label: id.toUpperCase(), value });
+    }
+    m.contextOptions.sort((a, b) => a.value - b.value);
+    markDirty();
+    renderBody();
+    focusChip('ctx-input-' + index);
+  }
+  function removeContext(index, optionIndex) {
+    const m = modelAt(index);
+    if (!m.contextOptions) return;
+    m.contextOptions.splice(optionIndex, 1);
+    if (!m.contextOptions.length) delete m.contextOptions;
+    markDirty();
+    renderBody();
+  }
+  function parseSize(text) {
+    const m = String(text || '').trim().toLowerCase().match(/^([0-9.]+)\s*([km])?$/);
+    if (!m) return 0;
+    const n = Number(m[1]);
+    if (!n) return 0;
+    if (m[2] === 'm') return Math.round(n * 1000000);
+    if (m[2] === 'k') return Math.round(n * 1000);
+    return Math.round(n);
+  }
+  function setContextDefault(index, value) {
+    const m = modelAt(index);
+    m.contextWindow = Number(value);
+    markDirty();
+    renderBody();
+  }
+  function contextControl(m, index) {
+    const opts = (m.contextOptions || []).slice().sort((a, b) => a.value - b.value);
+    const current = Number(m.contextWindow) || 0;
+    if (!opts.length) {
+      return `<input type="number" value="${m.contextWindow ?? ''}" oninput="setModelNumber(${index}, 'contextWindow', this.value)">`;
+    }
+    const known = opts.some((o) => Number(o.value) === current);
+    const items = opts.map((o) => ({ value: o.value, label: o.label || fmtTokens(o.value) }));
+    if (!known && current) items.push({ value: current, label: fmtTokens(current) });
+    items.sort((a, b) => Number(a.value) - Number(b.value));
+    return `<div class="seg">${items.map((it) => `<button class="seg-btn${Number(it.value) === current ? ' on' : ''}" onclick="setContextDefault(${index}, ${Number(it.value)})">${esc(it.label)}</button>`).join('')}</div>`;
   }
   function setEffortField(index, value) {
     const m = modelAt(index);
     if (!m.effort) return;
     m.effort.requestField = value;
     markDirty();
-  }
-  function setContextText(index, text) {
-    const m = modelAt(index);
-    const options = String(text).split(',').map((part) => part.trim()).filter(Boolean).map((part) => {
-      const [id, value] = part.split(':');
-      const optionId = id.trim();
-      return { id: optionId, label: optionId.toUpperCase(), value: Number(String(value || '').trim()) || 0 };
-    });
-    if (!options.length) delete m.contextOptions;
-    else m.contextOptions = options;
-    markDirty();
-    renderBody();
   }
   function setLegacyIds(index, text) {
     const m = modelAt(index);
@@ -976,7 +1130,7 @@
           <div class="grow"><div class="name">${esc(m.displayName || m.id || 'model')}</div><div class="meta mono">${esc(m.model || '')}</div></div></div></td>
         <td class="muted hide-sm">${esc(m.provider || '—')}</td>
         <td class="hide-sm">${caps.map((c) => `<span class="tag">${c}</span>`).join(' ') || '<span class="muted">—</span>'}</td>
-        <td class="hide-sm muted">${m.contextWindow ? Math.round(m.contextWindow / 1000) + 'k' : '—'}</td>
+        <td class="hide-sm muted">${contextLabel(m)}</td>
         <td><span class="status"><span class="dot ${m.enabled === false ? 'warn' : 'ok'}"></span>${m.enabled === false ? 'Disabled' : 'Enabled'}</span></td>
         <td class="chev-cell"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></td>
       </tr>`;
@@ -989,14 +1143,11 @@
 
   function renderModelDetail() {
     const index = route.model;
+    const idx = index;
     const m = modelAt(index);
     if (!m) { go('models'); return; }
     const effort = m.effort || null;
     const caps = m.capabilities || {};
-    const providerOptions = providerNames().map((name) => `<option value="${attr(name)}" ${name === m.provider ? 'selected' : ''}>${esc(name)}</option>`).join('');
-    const defaultOptions = effort
-      ? effort.tiers.map((t) => `<option value="${attr(t.id)}" ${t.id === effort.default ? 'selected' : ''}>${esc(t.label || t.id)}</option>`).join('')
-      : '<option value="">No effort tiers</option>';
 
     const form = `<div class="panel"><div class="panel-body">
       <div class="section">
@@ -1009,20 +1160,28 @@
       </div>
       <div class="section">
         <div class="section-title"><h3>Routing</h3><p>Where this model's requests are actually sent.</p></div>
-        ${row('Provider', 'Carries the credentials for this model.', `<select onchange="setModel(${index}, 'provider', this.value)">${providerOptions}</select>`)}
+        ${row('Provider', 'Carries the credentials for this model.', select(providerNames().map((n) => ({ value: n, label: n })), m.provider, (v) => setModel(idx, 'provider', v)))}
         ${row('Real model id', 'Sent to the provider unchanged.', textInput(m.model || '', `setModel(${index}, 'model', this.value)`))}
         ${row('Legacy ids', 'Older ids that still resolve here.', textInput((m.legacyIds || []).join(', '), `setLegacyIds(${index}, this.value)`, { placeholder: 'old-id, another-id' }))}
       </div>
       <div class="section">
         <div class="section-title"><h3>Limits</h3><p>Advertised to Cursor so it budgets the conversation.</p></div>
-        ${row('Context window', 'Total tokens the model accepts.', `<input type="number" value="${m.contextWindow ?? ''}" oninput="setModelNumber(${index}, 'contextWindow', this.value)">`)}
+        ${row('Context window', 'The default window Cursor budgets. Pick one of the sizes below.', contextControl(m, index))}
+        ${row('Context sizes', 'Extra sizes offered in the picker. Type a size and press Enter.', `<div class="chips" onclick="this.querySelector('input').focus()">
+          ${(m.contextOptions || []).map((o, i) => `<span class="chip-item" title="${attr(Number(o.value).toLocaleString())} tokens"><b>${esc(o.label || fmtTokens(o.value))}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeContext(${index}, ${i})">×</button></span>`).join('')}
+          <input class="chip-input" id="ctx-input-${index}" placeholder="${(m.contextOptions || []).length ? 'Add size…' : '1m:1000000'}" onkeydown="if(event.key==='Enter'){event.preventDefault();addContext(${index}, this)}">
+        </div>`)}
         ${row('Max output', 'Largest response allowed.', `<input type="number" value="${m.maxOutput ?? ''}" oninput="setModelNumber(${index}, 'maxOutput', this.value)">`)}
-        ${row('Context options', 'Picker choices as <span class="mono">id:token</span> pairs.', textInput(contextText(m), `setContextText(${index}, this.value)`, { event: 'onchange', placeholder: '272k:272000, 1m:1000000' }))}
       </div>
       <div class="section">
         <div class="section-title"><h3>Reasoning</h3><p>Optional effort tiers exposed in the picker.</p></div>
-        ${row('Effort tiers', '<span class="mono">id:Label</span> pairs, applied on blur.', textInput(effortText(m), `setEffortText(${index}, this.value)`, { event: 'onchange', placeholder: 'low:Low, high:High, max:Max' }))}
-        ${row('Default effort', 'Selected when the picker opens.', `<select onchange="setEffortDefault(${index}, this.value)" ${effort ? '' : 'disabled'}>${defaultOptions}</select>`)}
+        ${row('Effort tiers', 'Levels offered in the picker. Type <span class="mono">id:Label</span> and press Enter.', `<div class="chips" onclick="this.querySelector('input').focus()">
+          ${(effort ? effort.tiers : []).map((t, i) => `<span class="chip-item"><b>${esc(t.label || t.id)}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeTier(${index}, ${i})">×</button></span>`).join('')}
+          <input class="chip-input" id="tier-input-${index}" placeholder="${effort && effort.tiers.length ? 'Add tier…' : 'low:Low'}" onkeydown="if(event.key==='Enter'){event.preventDefault();addTier(${index}, this)}">
+        </div>`)}
+        ${row('Default effort', 'Selected when the picker opens.', effort && effort.tiers.length
+          ? `<div class="seg">${effort.tiers.map((t) => `<button class="seg-btn${t.id === effort.default ? ' on' : ''}" onclick="setEffortDefault(${index}, '${attr(t.id)}')">${esc(t.label || t.id)}</button>`).join('')}</div>`
+          : '<span class="muted" style="font-size:13px">Add a tier first.</span>')}
         ${row('Request field', 'Body field carrying the effort value.', textInput(effort ? effort.requestField || '' : '', `setEffortField(${index}, this.value)`, { placeholder: 'reasoning_effort' }))}
       </div>
       <div class="section">
@@ -1044,7 +1203,7 @@
     const meta = `<div class="meta">
       <div class="meta-item"><div class="k">Cursor id</div><div class="v mono">${esc(m.cursorId || '—')}</div>${m.cursorId ? `<button class="meta-copy" data-copy="${attr(m.cursorId)}" onclick="copyText(this)">Copy id</button>` : ''}</div>
       <div class="meta-item"><div class="k">Provider</div><div class="v">${esc(m.provider || '—')}</div></div>
-      <div class="meta-item"><div class="k">Context</div><div class="v">${m.contextWindow ? m.contextWindow.toLocaleString() + ' tokens' : '—'}</div></div>
+      <div class="meta-item"><div class="k">Context</div><div class="v">${m.contextWindow ? fmtTokens(m.contextWindow) + ' default' : '—'}${(m.contextOptions && m.contextOptions.length) ? `<br><span class="muted">${contextLabel(m)} available</span>` : ''}</div></div>
       <div class="meta-item"><div class="k">Status</div><div class="v"><span class="status"><span class="dot ${m.enabled === false ? 'warn' : 'ok'}"></span>${m.enabled === false ? 'Disabled' : 'Enabled'}</span></div></div>
     </div>`;
 
@@ -1080,10 +1239,7 @@
       <div class="section">
         <div class="section-title"><h3>Routing</h3><p>What happens to models AnyCursor does not know about.</p></div>
         ${row('Native passthrough', 'Forward unknown models to Cursor untouched.', check('Enabled', r.nativePassthrough !== false, `setNested('routing', 'nativePassthrough', this.checked)`))}
-        ${row('Unknown model', 'Fallback when passthrough is off.', `<select onchange="setNested('routing', 'onUnknownModel', this.value)">
-          <option value="native" ${r.onUnknownModel === 'native' ? 'selected' : ''}>native</option>
-          <option value="error" ${r.onUnknownModel === 'error' ? 'selected' : ''}>error</option>
-        </select>`)}
+        ${row('Unknown model', 'Fallback when passthrough is off.', select([{ value: 'native', label: 'native' }, { value: 'error', label: 'error' }], r.onUnknownModel || 'native', (v) => setNested('routing', 'onUnknownModel', v)))}
         ${row('Default model', 'Used when a request names no model.', textInput(r.defaultModel || '', `setNested('routing', 'defaultModel', this.value)`, { placeholder: 'claude-anycursor-…' }))}
       </div>
     </div></div>`;
