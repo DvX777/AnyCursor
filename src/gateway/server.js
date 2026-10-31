@@ -27,6 +27,7 @@ const { selectedModelIds } = require('../cursor/state');
 const providers = require('../providers');
 const { cachedOpencodeCredential } = require('../providers/opencode-credential');
 const inference = require('./inference');
+const selections = require('./selections');
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -362,6 +363,13 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
       const selectedEffort = parsed.modelParameters
         ? (parsed.modelParameters.reasoning_effort || parsed.modelParameters.reasoning)
         : undefined;
+      if (parsed.modelParameters) {
+        selections.record(byokModel || { cursorId: parsed.modelId }, {
+          effort: selectedEffort,
+          context: parsed.modelParameters.context,
+          fast: parsed.modelParameters.fast,
+        });
+      }
       const providerOptions = byokModel
         ? {
             headers: (byokProvider && byokProvider.headers) || {},
@@ -784,6 +792,7 @@ function statusPayload() {
         }]))
       : {},
     models: config ? config.models.map(redactModel) : [],
+    selections: selections.snapshot(),
   };
 }
 

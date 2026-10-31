@@ -14,6 +14,7 @@
  */
 
 const providers = require('../providers');
+const selections = require('./selections');
 
 /* ---------------- protobuf primitives ---------------- */
 
@@ -577,6 +578,7 @@ function handleRunInference(stream, hdrs, id, reqPath, options) {
     const tools = convertTools(request.tools);
     const parameters = { ...request.parameters, ...(request.requestedModel && request.requestedModel.parameters) };
     const effort = selectedEffort(selected, parameters);
+    selections.record(selected, { effort, context: parameters.context, fast: parameters.fast });
     const adapter = providers.getAdapter(selected.api);
     const abort = new AbortController();
     currentAbort = abort;
