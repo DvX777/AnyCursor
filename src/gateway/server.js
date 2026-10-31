@@ -29,6 +29,7 @@ const { cachedOpencodeCredential } = require('../providers/opencode-credential')
 const inference = require('./inference');
 const selections = require('./selections');
 const usage = require('./usage');
+const modelsDev = require('../catalog/models-dev');
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -768,8 +769,26 @@ function redactModel(model) {
   };
 }
 
-function statusPayload() {
-  const config = currentConfig();
+let modelsDevCache = { at: 0, data: null };
+
+async function lookupModelMetadata(providerName, modelId) {
+  if (!modelId) return null;
+  if (!modelsDevCache.data || Date.now() - modelsDevCache.at > 10 * 60 * 1000) {
+    modelsDevCache = { at: Date.now(), data: await modelsDev.fetchModelsDev() };
+  }
+  const config = currentConfig() || {};
+  const provider = (config.providers || {})[providerName] || {};
+  const base = String(provider.baseUrl || '').toLowerCase();
+  const hint = ['ollama', 'openrouter', 'openai', 'anthropic', 'google', 'deepseek', 'mistral', 'groq', 'xai'].find((key) => base.includes(key));
+  const candidates = [...new Set([provider.modelsDevProvider, provider.credential, hint, providerName].filter(Boolean).map(String))];
+  for (const id of candidates) {
+    const entry = modelsDev.findModel(modelsDevCache.data, id, modelId);
+    if (entry) return { providerId: id, meta: modelsDev.describe(entry) };
+  }
+  return null;
+}
+
+function statusPayload() {  const config = currentConfig();
   return {
     ok: !!config,
     version: PKG.version,
@@ -879,6 +898,18 @@ function handleLocal(req, res) {
     }
     res.writeHead(405, { allow: 'GET, HEAD, POST', 'content-type': 'text/plain; charset=utf-8' });
     res.end('method not allowed');
+    return true;
+  }
+
+  if (pathname === '/api/lookup-model' && req.method === 'POST') {
+    readJsonBody(req).then(async (body) => {
+      try {
+        const found = await lookupModelMetadata(String(body.provider || ''), String(body.model || ''));
+        sendJson(res, 200, found ? { ok: true, found: true, providerId: found.providerId, meta: found.meta } : { ok: true, found: false });
+      } catch (error) {
+        sendJson(res, 502, { ok: false, error: String((error && error.message) || error) });
+      }
+    }).catch((error) => sendJson(res, 400, { ok: false, error: String((error && error.message) || error) }));
     return true;
   }
 

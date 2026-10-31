@@ -78,6 +78,37 @@ async function fetchModelsDev(fetchImpl = fetch) {
   return res.json();
 }
 
+
+/**
+ * Normalise a models.dev entry into the fields the dashboard can apply.
+ * @param {object} entry
+ */
+function describe(entry) {
+  if (!entry) return null;
+  const limit = entry.limit || {};
+  const cost = entry.cost || {};
+  const inputs = (entry.modalities && entry.modalities.input) || [];
+  const tiers = effortTiers(entry);
+  return {
+    id: entry.id || '',
+    name: entry.name || entry.id || '',
+    family: entry.family || '',
+    contextWindow: Number(limit.context) || 0,
+    maxOutput: Number(limit.output) || 0,
+    capabilities: {
+      tools: entry.tool_call === true,
+      vision: entry.attachment === true || inputs.includes('image'),
+      reasoning: entry.reasoning === true,
+      streaming: true,
+      cache: cost.cache_read != null || cost.cache_write != null,
+    },
+    effortTiers: tiers,
+    effortDefault: tiers.some((tier) => tier.id === 'high')
+      ? 'high'
+      : (tiers.length ? tiers[0].id : ''),
+  };
+}
+
 function enrichConfig(config, catalog) {
   const models = config.models.map((model) => {
     const provider = config.providers[model.provider] || {};
@@ -94,5 +125,6 @@ module.exports = {
   findModel,
   enrichModel,
   enrichConfig,
+  describe,
   fetchModelsDev,
 };

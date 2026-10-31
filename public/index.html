@@ -278,6 +278,10 @@
   .row { display: grid; grid-template-columns: 212px minmax(0, 1fr); gap: 26px; padding: 12px 0; align-items: center; }
   .row .label { font-size: 13px; font-weight: 500; color: var(--ink); }
   .row .desc { margin-top: 2px; font-size: 12px; line-height: 1.45; color: var(--muted); font-weight: 400; }
+  .field-inline { display: flex; gap: 8px; align-items: center; }
+  .field-inline input { flex: 1; min-width: 0; }
+  .lookup-note { font-size: 11.5px; color: var(--muted); }
+  .lookup-note.ok { color: var(--green); }
   .control { display: flex; flex-direction: column; gap: 7px; max-width: 420px; min-width: 0; }
 
   input[type=text], input[type=password], input[type=number], select, textarea {
@@ -1429,6 +1433,70 @@
     filterRows();
   }
 
+  const lookup = {};
+  function lookupNote(index) {
+    const state = lookup[index];
+    if (!state) return '';
+    if (state.state === 'loading') return '<div class="lookup-note">Checking models.dev…</div>';
+    if (state.state === 'ok') return `<div class="lookup-note ok">Matched ${esc(state.name)} on models.dev</div>`;
+    if (state.state === 'missing') return '<div class="lookup-note">No entry for this id — set the fields manually.</div>';
+    if (state.state === 'error') return `<div class="lookup-note">Lookup failed: ${esc(state.error)}</div>`;
+    return '';
+  }
+  function applyModelMeta(index, meta) {
+    const m = modelAt(index);
+    if (!m) return;
+    if (meta.name) {
+      if (!m.displayName || m.displayName === 'New model') m.displayName = meta.name;
+      if (!m.shortName || m.shortName === 'New model') m.shortName = meta.name;
+    }
+    if (meta.contextWindow) m.contextWindow = meta.contextWindow;
+    if (meta.maxOutput) m.maxOutput = meta.maxOutput;
+    if (meta.capabilities) m.capabilities = { ...(m.capabilities || {}), ...meta.capabilities };
+    if (meta.effortTiers && meta.effortTiers.length) {
+      m.effort = {
+        tiers: meta.effortTiers,
+        default: (m.effort && m.effort.default) || meta.effortDefault || meta.effortTiers[0].id,
+        requestField: (m.effort && m.effort.requestField) || 'reasoning_effort',
+      };
+    } else if (meta.capabilities && meta.capabilities.reasoning === false) {
+      delete m.effort;
+    }
+  }
+  async function lookupModel(index) {
+    const m = modelAt(index);
+    if (!m) return;
+    const modelId = String(m.model || m.id || '').trim();
+    if (!modelId) { toast('Add the real model id first.', 'bad', 'Nothing to look up'); return; }
+    lookup[index] = { state: 'loading' };
+    renderBody();
+    try {
+      const res = await fetch('/api/lookup-model', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: m.provider || '', model: modelId }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'lookup failed');
+      if (!data.found) {
+        lookup[index] = { state: 'missing' };
+        renderBody();
+        toast('models.dev has no entry for this model id.', 'bad', 'Not found');
+        return;
+      }
+      applyModelMeta(index, data.meta);
+      lookup[index] = { state: 'ok', name: data.meta.name || modelId };
+      markDirty();
+      renderBody();
+      await saveConfig();
+      toast('Limits, reasoning and capabilities loaded from models.dev.', 'good', 'Auto-filled and saved');
+    } catch (error) {
+      lookup[index] = { state: 'error', error: String((error && error.message) || error) };
+      renderBody();
+      toast(esc(String((error && error.message) || error)), 'bad', 'Lookup failed');
+    }
+  }
+
   function renderModelDetail() {
     const index = route.model;
     const idx = index;
@@ -1449,7 +1517,10 @@
       <div class="section">
         <div class="section-title"><h3>Routing</h3><p>Where this model's requests are actually sent.</p></div>
         ${row('Provider', 'Holds the credentials for this model.', select(providerNames().map((n) => ({ value: n, label: n })), m.provider, (v) => setModel(idx, 'provider', v)))}
-        ${row('Real model id', 'Sent to the provider unchanged.', textInput(m.model || '', `setModel(${index}, 'model', this.value)`))}
+        ${row('Real model id', 'Sent to the provider unchanged. Blur to look it up.', `<div class="field-inline">
+          <input type="text" value="${attr(m.model || '')}" oninput="setModel(${index}, 'model', this.value)" onchange="lookupModel(${index})">
+          <button class="btn" onclick="lookupModel(${index})">${lookup[index] && lookup[index].state === 'loading' ? 'Looking up…' : 'Look up'}</button>
+        </div>${lookupNote(index)}`)}
         ${row('Legacy ids', 'Older ids that still resolve here.', textInput((m.legacyIds || []).join(', '), `setLegacyIds(${index}, this.value)`, { placeholder: 'old-id, another-id' }))}
       </div>
       <div class="section">
