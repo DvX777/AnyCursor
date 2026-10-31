@@ -88,9 +88,33 @@ if (-not $SkipExtension -and (Test-Path $vsix)) {
   if (-not $cli) {
     Write-Warning "Cursor CLI not found; install the VSIX manually: $vsix"
   } else {
+    # The gateway and its supervisor live under the extension folder, so they
+    # must be stopped before Cursor's CLI replaces it.
+    Stop-ScheduledTask -TaskName 'AnyCursor Gateway Watchdog' -ErrorAction SilentlyContinue
+    Get-Process -Name 'AnyCursor Gateway' -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+      Where-Object { $_.CommandLine -match 'anycursor' -and $_.CommandLine -match 'vendor' } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 500
+
     Write-Host "Installing extension from $vsix..." -ForegroundColor Cyan
     & $cli --install-extension $vsix --force
     if ($LASTEXITCODE -ne 0) { throw "extension install failed" }
+
+    # The Cursor CLI leaves the previous version next to the new one.
+    $extRoot = Join-Path $env:USERPROFILE '.cursor\extensions'
+    if (Test-Path $extRoot) {
+      Get-ChildItem $extRoot -Directory -Filter 'anycursor.anycursor-*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne "anycursor.anycursor-$version" } |
+        ForEach-Object {
+          try {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
+            Write-Host "Removed previous extension $($_.Name)." -ForegroundColor Green
+          } catch {
+            Write-Warning "Could not remove $($_.FullName); it will be ignored."
+          }
+        }
+    }
   }
 }
 
@@ -105,13 +129,16 @@ function Install-StartupFallback {
 
   $link = Join-Path $startup 'AnyCursor Gateway.lnk'
   $launcher = Join-Path $dataDir 'AnyCursor Gateway.exe'
-  $launcherOk = $false
-  try {
-    & (Join-Path $PSScriptRoot 'build-launcher.ps1') -Node $Node -OutDir $dataDir | Out-Null
-    $launcherOk = Test-Path $launcher
-  } catch {
-    Write-Warning "Could not build AnyCursor Gateway.exe ($($_.Exception.Message)); using the script launcher."
+  # The watchdog build already produced (or failed to produce) the launcher;
+  # do not rebuild while its supervisor holds the file open.
+  if (-not (Test-Path $launcher)) {
+    try {
+      & (Join-Path $PSScriptRoot 'build-launcher.ps1') -Node $Node -OutDir $dataDir | Out-Null
+    } catch {
+      Write-Warning "Could not build AnyCursor Gateway.exe ($($_.Exception.Message)); using the script launcher."
+    }
   }
+  $launcherOk = Test-Path $launcher
 
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($link)
@@ -177,6 +204,10 @@ function Install-Watchdog {
   $watchName = 'AnyCursor Gateway Watchdog'
 
   $launcherReady = $false
+  # A running supervisor locks the exe; stop it before rebuilding.
+  Stop-ScheduledTask -TaskName $watchName -ErrorAction SilentlyContinue
+  Get-Process -Name 'AnyCursor Gateway' -ErrorAction SilentlyContinue | Stop-Process -Force
+  Start-Sleep -Milliseconds 400
   try {
     & (Join-Path $PSScriptRoot 'build-launcher.ps1') -Node $Node -OutDir $dataDir | Out-Null
     $launcherReady = Test-Path $launcher
@@ -189,14 +220,20 @@ function Install-Watchdog {
   }
 
   try {
-    $action = New-ScheduledTaskAction -Execute $launcher
-    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-      -RepetitionInterval (New-TimeSpan -Minutes 1)
+    $action = New-ScheduledTaskAction -Execute $launcher -Argument '--watch'
+    $triggerUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $triggers = @(
+      (New-ScheduledTaskTrigger -AtLogOn -User $triggerUser),
+      (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
+        -RepetitionInterval (New-TimeSpan -Minutes 1))
+    )
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-      -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -StartWhenAvailable
-    Register-ScheduledTask -TaskName $watchName -Action $action -Trigger $trigger -Settings $settings -Force `
+      -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable `
+      -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+    Register-ScheduledTask -TaskName $watchName -Action $action -Trigger $triggers -Settings $settings -Force `
       -Description 'Keeps the AnyCursor gateway running, even when Cursor runs without extensions.' | Out-Null
-    Write-Host "Registered the watchdog task '$watchName' (checks every minute)." -ForegroundColor Green
+    Start-ScheduledTask -TaskName $watchName
+    Write-Host "Registered the watchdog task '$watchName' (supervises every few seconds)." -ForegroundColor Green
     return $true
   } catch {
     Write-Warning "Watchdog task registration failed ($($_.Exception.Message))."

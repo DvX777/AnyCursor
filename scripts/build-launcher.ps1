@@ -26,6 +26,7 @@ using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 [assembly: AssemblyTitle("AnyCursor Gateway")]
 [assembly: AssemblyDescription("Hidden AnyCursor gateway prewarm helper. Users launch Cursor, not this file.")]
@@ -123,8 +124,67 @@ class AnyCursorLauncher
         }
     }
 
-    static void Main()
+    static Process StartGateway(string gateway, string node, string config)
     {
+        try
+        {
+            ProcessStartInfo info = new ProcessStartInfo();
+            info.FileName = node;
+            info.Arguments = "\"" + gateway + "\" --config \"" + config + "\"";
+            info.WorkingDirectory = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(gateway)));
+            info.UseShellExecute = false;
+            info.CreateNoWindow = true;
+            info.WindowStyle = ProcessWindowStyle.Hidden;
+            Process child = Process.Start(info);
+            Log("started gateway with " + node + " (pid " + child.Id + ")");
+            return child;
+        }
+        catch (Exception error)
+        {
+            Log("gateway start failed: " + error.Message);
+            return null;
+        }
+    }
+
+    // Keeps the gateway alive for windows that never load third-party extensions
+    // (Cursor's Agent Window). The extension is an optional extra supervisor.
+    static void Supervise(string config, string host, int port)
+    {
+        Log("supervisor started");
+        while (true)
+        {
+            if (Healthy(host, port))
+            {
+                Thread.Sleep(2000);
+                continue;
+            }
+
+            string gateway = GatewayPath();
+            if (gateway == null)
+            {
+                Log("gateway runtime not found under .cursor/extensions; retrying");
+                Thread.Sleep(15000);
+                continue;
+            }
+
+            Process child = StartGateway(gateway, NodePath(), config);
+            if (child == null)
+            {
+                Thread.Sleep(15000);
+                continue;
+            }
+
+            // Hold this supervisor on the child. If it exits (crash, upgrade,
+            // port conflict) the health probe runs again and starts a new one.
+            try { child.WaitForExit(); } catch { }
+            Log("gateway exited; checking again shortly");
+            Thread.Sleep(5000);
+        }
+    }
+
+    static void Main(string[] args)
+    {
+        bool watch = args != null && args.Length > 0 && args[0] == "--watch";
         string config = ConfigPath();
         string host = "127.0.0.1";
         int port = 43110;
@@ -147,6 +207,17 @@ class AnyCursorLauncher
             Log("config read failed: " + error.Message);
         }
 
+        if (watch)
+        {
+            Mutex mutex = new Mutex(false, "Local\\AnyCursorGatewaySupervisor");
+            bool owned = false;
+            try { owned = mutex.WaitOne(0); }
+            catch (AbandonedMutexException) { owned = true; }
+            if (!owned) return;
+            Supervise(config, host, port);
+            return;
+        }
+
         if (Healthy(host, port)) return;
 
         string gateway = GatewayPath();
@@ -156,24 +227,7 @@ class AnyCursorLauncher
             return;
         }
 
-        string node = NodePath();
-        string root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(gateway)));
-        try
-        {
-            ProcessStartInfo info = new ProcessStartInfo();
-            info.FileName = node;
-            info.Arguments = "\"" + gateway + "\" --config \"" + config + "\"";
-            info.WorkingDirectory = root;
-            info.UseShellExecute = false;
-            info.CreateNoWindow = true;
-            info.WindowStyle = ProcessWindowStyle.Hidden;
-            Process.Start(info);
-            Log("started gateway with " + node);
-        }
-        catch (Exception error)
-        {
-            Log("gateway start failed: " + error.Message);
-        }
+        StartGateway(gateway, NodePath(), config);
     }
 }
 '@

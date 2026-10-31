@@ -73,14 +73,14 @@ npm run install:windows
 
 Then open Cursor normally — from the Desktop, Start Menu or Taskbar shortcut.
 
-> **Cursor's Agent Window does not load extensions.** Cursor 3.x opens its glass/Agent window by default, and that surface runs no third-party extensions at all — not just AnyCursor. BYOK models still work there because the installer registers a gateway watchdog (below). The AnyCursor commands, status bar item and gateway supervision only appear in an IDE window, opened with `Cursor.exe --classic`. See [Troubleshooting](#extensions-dont-load-in-cursors-agent-window).
+> **Cursor's Agent Window does not load extensions.** Cursor 3.x opens its glass/Agent window by default, and that surface only scans a fixed list of Cursor's own extensions, so no third-party extension activates there — not just AnyCursor. Your models do not depend on that: the gateway is a separate local service, and the installer's watchdog keeps it running without any extension activation. The AnyCursor commands, status bar item and doctor report are extras that appear in an IDE window, opened with `Cursor.exe --classic`. See [Agent Window and the IDE window](#agent-window-and-the-ide-window).
 
 The installer:
 
 1. seeds `%LOCALAPPDATA%\AnyCursor\config.json`
 2. stages the gateway inside the extension and builds a VSIX
 3. installs the extension with the Cursor CLI
-4. registers the **AnyCursor Gateway Watchdog**, a per-user task that restarts the gateway within a minute if it stopped
+4. registers the **AnyCursor Gateway Watchdog**, a per-user task that supervises the gateway (restarts it within seconds)
 5. registers a login pre-warm task, or falls back to a hidden Startup entry
 6. patches Cursor shortcuts with the local backend flag
 7. waits for the gateway health endpoint
@@ -243,6 +243,19 @@ AnyCursor: Repair Cursor Shortcuts
 AnyCursor: Start Gateway
 ```
 
+### Agent Window and the IDE window
+
+Cursor 3.x has two surfaces:
+
+| Surface | Third-party extensions | AnyCursor models | AnyCursor commands |
+| --- | --- | --- | --- |
+| Agent Window (glass, default) | No — Cursor scans a fixed allowlist of its own extensions | Yes | No |
+| IDE window (`Cursor.exe --classic`) | Yes | Yes | Yes |
+
+Models work in both because Cursor calls the local gateway for `AvailableModels` and `RunInference` regardless of the window. The gateway is a normal background process, not an extension: the watchdog task starts it at login and restarts it within seconds if it exits. Nothing needs to be activated first.
+
+Open an IDE window when you want the status bar item, `AnyCursor: Doctor`, or the other commands. Shortcuts keep opening the Agent Window, and that is fine.
+
 ### About `--test-backend-url`
 
 This is Cursor's own internal switch for pointing the desktop app at another backend. Cursor exposes no public alternative. AnyCursor keeps shortcuts pointed at `Cursor.exe` with this flag instead of routing users through a separate launcher.
@@ -292,17 +305,11 @@ The local loop needs `run_ready` prompt metadata and a recognized model family. 
 
 ### Extensions don't load in Cursor's Agent Window
 
-Cursor 3.x opens its glass **Agent Window** by default. That window loads Cursor's built-in extensions only — no third-party extension activates there, so AnyCursor's status bar item, commands and gateway supervision are absent. The install is still fine.
+Expected in Cursor 3.x: the Agent Window scans a fixed allowlist of Cursor's own extensions, so AnyCursor's status bar item and commands stay absent there. That does not affect models — the gateway runs independently of the extension. Open an IDE window (`Cursor.exe --classic`) if you need the commands. See [Agent Window and the IDE window](#agent-window-and-the-ide-window).
 
-Open an IDE window to use the extension:
+### Models are missing from the model picker
 
-```powershell
-& "$env:LOCALAPPDATA\Programs\cursor\Cursor.exe" --classic
-```
-
-You should then see the **AnyCursor** status bar item and `AnyCursor: Doctor` in the command palette. Shortcuts still launch the Agent Window; that is expected.
-
-BYOK turns do not depend on that window: the per-user **AnyCursor Gateway Watchdog** task probes the gateway every minute and starts it again if it stopped, so a model you added keeps answering even in a window with no extensions.
+Cursor reads the model catalog when a window opens. If the gateway was down at that exact moment, that window lists native models only. The watchdog starts the gateway within seconds; reload the window (command palette → **Reload Window**) or reopen Cursor to fetch the catalog again.
 
 ### Gateway is down
 

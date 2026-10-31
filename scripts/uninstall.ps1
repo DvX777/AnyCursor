@@ -10,11 +10,18 @@ $taskNames = @($TaskName, 'AnyCursor Gateway Watchdog')
 foreach ($name in $taskNames) {
   $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
   if ($task) {
+    Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $name -Confirm:$false
     Write-Host "Removed scheduled task '$name'." -ForegroundColor Green
   } else {
     Write-Host "Scheduled task '$name' was not registered." -ForegroundColor Yellow
   }
+}
+
+$watchProcesses = Get-CimInstance Win32_Process -Filter "Name='AnyCursor Gateway.exe'" -ErrorAction SilentlyContinue
+foreach ($watchProcess in $watchProcesses) {
+  Stop-Process -Id $watchProcess.ProcessId -Force -ErrorAction SilentlyContinue
+  Write-Host "Stopped the gateway supervisor ($($watchProcess.ProcessId))." -ForegroundColor Green
 }
 
 $startupEntries = @(
