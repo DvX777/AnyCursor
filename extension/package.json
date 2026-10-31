@@ -2,7 +2,7 @@
   "name": "anycursor",
   "displayName": "AnyCursor",
   "description": "Use Cursor's native models and your own BYOK models side by side.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "anycursor",
   "license": "MIT",
   "engines": {
