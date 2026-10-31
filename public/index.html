@@ -288,6 +288,18 @@
   .meta-copy { margin-top: 5px; padding: 0; border: 0; background: none; color: var(--blue); font: inherit; font-size: 12px; cursor: pointer; }
   .meta-copy:hover { text-decoration: underline; }
 
+  .onboard { padding: 46px 20px 50px; text-align: center; border: 1px dashed var(--line-2); border-radius: 14px; }
+  .onboard .ico {
+    width: 44px; height: 44px; margin: 0 auto 16px; border-radius: 12px; display: grid; place-items: center;
+    background: #f0f5ff; border: 1px solid #dce6f8;
+  }
+  .onboard .ico svg { width: 22px; height: 22px; color: #4d7fd6; }
+  .onboard h2 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: -.015em; }
+  .onboard p { margin: 7px auto 18px; max-width: 430px; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+  .onboard .steps { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .onboard .step { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
+  .onboard .step b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: #f1f3f6; font-size: 10.5px; font-weight: 600; color: var(--ink-2); }
+
   .empty { padding: 40px 16px 44px; text-align: center; color: var(--muted); font-size: 13px; }
   .empty strong { display: block; margin-bottom: 3px; color: var(--ink); font-size: 13.5px; font-weight: 500; }
 
@@ -687,10 +699,26 @@
       </tr>`;
     }).join('');
 
+    if (!providers.length && !models.length) {
+      $('page-body').innerHTML = `${summary}
+        <div class="onboard">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18h4.3a3 3 0 0 0 3-3V8.2"/></svg></div>
+          <h2>Nothing routed yet</h2>
+          <p>AnyCursor sits between Cursor and your provider. Add a provider with your endpoint and key, then add the models you want to see in Cursor's picker.</p>
+          <div class="steps">
+            <span class="step"><b>1</b> Add a provider</span>
+            <span class="step"><b>2</b> Add a model</span>
+            <span class="step"><b>3</b> Pick it in Cursor</span>
+          </div>
+          <div style="margin-top:20px"><button class="pill primary" onclick="addProvider()">Add your first provider</button></div>
+        </div>`;
+      return;
+    }
+
     $('page-body').innerHTML = `${summary}
       <table class="table" style="margin-bottom:22px">
         <thead><tr><th style="width:34%">Model</th><th class="hide-sm">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm" style="width:82px">Context</th><th style="width:120px">Status</th><th></th></tr></thead>
-        <tbody>${modelRows || '<tr><td colspan="6"><div class="empty"><strong>No models yet</strong>Add a provider, then create a model.</div></td></tr>'}</tbody>
+        <tbody>${modelRows || '<tr><td colspan="6"><div class="empty"><strong>No models yet</strong>Your provider is ready — add a model to expose it in Cursor&#39;s picker.<div style="margin-top:14px"><button class="pill" onclick="addModel()">+ Add model</button></div></div></td></tr>'}</tbody>
       </table>
       <table class="table">
         <thead><tr><th style="width:30%">Provider</th><th class="hide-sm">Endpoint</th><th style="width:110px">Models</th><th style="width:130px">Credentials</th><th></th></tr></thead>
