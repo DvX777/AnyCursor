@@ -784,7 +784,7 @@
       head.innerHTML = `<div>
           <div class="crumbs"><button onclick="go('models')">Models</button><span>/</span><span>${esc(m.displayName || m.id || '')}</span></div>
           <h1>${esc(m.displayName || m.id || 'Model')}</h1>
-          <p class="sub mono">${esc(m.cursorId || m.id || '')}</p>
+          <p class="sub mono">${esc(effectiveCursorId(m) || m.id || '')}</p>
         </div>
         <div class="actions"><button class="btn danger" onclick="removeModel(${route.model})">Remove model</button></div>`;
       return;
@@ -969,6 +969,13 @@
 
   /* ---------------- overview ---------------- */
   const USAGE_COLORS = ['#2563eb', '#0f8a49', '#b7791f', '#7c3aed', '#c0392b', '#0891b2', '#4b5563'];
+  function effectiveCursorId(m) {
+    if (!m) return '';
+    if (m.cursorId) return m.cursorId;
+    const live = (STATUS && STATUS.models) || [];
+    const match = live.find((x) => x.id === m.id);
+    return (match && match.cursorId) || '';
+  }
   function modelName(id) {
     const model = (CFG.models || []).find((m) => m.cursorId === id || m.id === id);
     return model ? (model.displayName || model.id) : String(id).replace(/^claude-anycursor-/, '');
@@ -1438,7 +1445,7 @@
     const state = lookup[index];
     if (!state) return '';
     if (state.state === 'loading') return '<div class="lookup-note">Checking models.dev…</div>';
-    if (state.state === 'ok') return `<div class="lookup-note ok">Matched ${esc(state.name)} on models.dev</div>`;
+    if (state.state === 'ok') return `<div class="lookup-note ok">Matched ${esc(state.name)}${state.providerId ? ` (${esc(state.providerId)})` : ''} on models.dev</div>`;
     if (state.state === 'missing') return '<div class="lookup-note">No entry for this id — set the fields manually.</div>';
     if (state.state === 'error') return `<div class="lookup-note">Lookup failed: ${esc(state.error)}</div>`;
     return '';
@@ -1485,7 +1492,7 @@
         return;
       }
       applyModelMeta(index, data.meta);
-      lookup[index] = { state: 'ok', name: data.meta.name || modelId };
+      lookup[index] = { state: 'ok', name: data.meta.name || modelId, providerId: data.providerId || '' };
       markDirty();
       renderBody();
       await saveConfig();
@@ -1561,7 +1568,7 @@
 
     const meta = `<div class="meta">
       <div class="meta-item" id="live-sel">${liveSelectionMarkup(m)}</div>
-      <div class="meta-item"><div class="k">Cursor id</div><div class="v mono">${esc(m.cursorId || '—')}</div>${m.cursorId ? `<button class="meta-copy" data-copy="${attr(m.cursorId)}" onclick="copyText(this)">Copy id</button>` : ''}</div>
+      <div class="meta-item"><div class="k">Cursor id</div><div class="v mono">${esc(effectiveCursorId(m) || '—')}</div>${effectiveCursorId(m) ? `<button class="meta-copy" data-copy="${attr(effectiveCursorId(m))}" onclick="copyText(this)">Copy id</button>` : ''}</div>
       <div class="meta-item"><div class="k">Provider</div><div class="v">${esc(m.provider || '—')}</div></div>
       <div class="meta-item"><div class="k">Context</div><div class="v">${m.contextWindow ? fmtTokens(m.contextWindow) + ' default' : '—'}${(m.contextOptions && m.contextOptions.length && contextLabel(m) !== fmtTokens(m.contextWindow)) ? `<br><span class="muted">${contextLabel(m)} available</span>` : ''}</div></div>
       <div class="meta-item"><div class="k">Status</div><div class="v"><span class="status"><span class="dot ${m.enabled === false ? 'warn' : 'ok'}"></span>${m.enabled === false ? 'Disabled' : 'Enabled'}</span></div></div>

@@ -779,13 +779,43 @@ async function lookupModelMetadata(providerName, modelId) {
   const config = currentConfig() || {};
   const provider = (config.providers || {})[providerName] || {};
   const base = String(provider.baseUrl || '').toLowerCase();
-  const hint = ['ollama', 'openrouter', 'openai', 'anthropic', 'google', 'deepseek', 'mistral', 'groq', 'xai'].find((key) => base.includes(key));
-  const candidates = [...new Set([provider.modelsDevProvider, provider.credential, hint, providerName].filter(Boolean).map(String))];
+
+  // Provider ids used by models.dev, inferred from the endpoint when the
+  // configured id is missing or stale.
+  const hostIds = [];
+  if (base.includes('ollama.com')) hostIds.push('ollama-cloud');
+  if (/:11434|localhost|127\.0\.0\.1/.test(base)) hostIds.push('ollama');
+  for (const [needle, id] of [
+    ['openrouter', 'openrouter'], ['api.openai.com', 'openai'], ['anthropic', 'anthropic'],
+    ['googleapis', 'google'], ['deepseek', 'deepseek'], ['mistral', 'mistral'], ['groq', 'groq'],
+  ]) {
+    if (base.includes(needle)) hostIds.push(id);
+  }
+
+  const candidates = [...new Set([provider.modelsDevProvider, provider.credential, ...hostIds, providerName].filter(Boolean).map(String))];
   for (const id of candidates) {
     const entry = modelsDev.findModel(modelsDevCache.data, id, modelId);
-    if (entry) return { providerId: id, meta: modelsDev.describe(entry) };
+    if (entry) return { providerId: id, source: 'models.dev', meta: modelsDev.describe(entry) };
   }
+
+  // Last resort: the same model id under any provider in the catalogue.
+  const global = searchCatalog(modelsDevCache.data, modelId);
+  if (global) return { providerId: global.providerId, source: 'models.dev', meta: modelsDev.describe(global.entry) };
   return null;
+}
+
+function searchCatalog(catalog, modelId) {
+  const wanted = String(modelId || '').toLowerCase();
+  if (!wanted) return null;
+  let partial = null;
+  for (const [providerId, provider] of Object.entries(catalog || {})) {
+    for (const [id, entry] of Object.entries((provider && provider.models) || {})) {
+      const lower = String(id).toLowerCase();
+      if (lower === wanted) return { providerId, entry };
+      if (!partial && (lower.endsWith(`:${wanted}`) || lower.endsWith(`/${wanted}`))) partial = { providerId, entry };
+    }
+  }
+  return partial;
 }
 
 function statusPayload() {  const config = currentConfig();
@@ -905,7 +935,7 @@ function handleLocal(req, res) {
     readJsonBody(req).then(async (body) => {
       try {
         const found = await lookupModelMetadata(String(body.provider || ''), String(body.model || ''));
-        sendJson(res, 200, found ? { ok: true, found: true, providerId: found.providerId, meta: found.meta } : { ok: true, found: false });
+        sendJson(res, 200, found ? { ok: true, found: true, providerId: found.providerId, source: found.source, meta: found.meta } : { ok: true, found: false });
       } catch (error) {
         sendJson(res, 502, { ok: false, error: String((error && error.message) || error) });
       }
