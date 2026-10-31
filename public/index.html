@@ -1505,8 +1505,11 @@
     const m = modelAt(index);
     if (!m) return;
     if (meta.name) {
-      if (!m.displayName || m.displayName === 'New model') m.displayName = meta.name;
-      if (!m.shortName || m.shortName === 'New model') m.shortName = meta.name;
+      const pretty = String(meta.name).includes('-')
+        ? String(meta.name).split(/[-_]/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+        : meta.name;
+      if (!m.displayName || m.displayName === 'New model' || m.displayName === m.model) m.displayName = pretty;
+      if (!m.shortName || m.shortName === 'New model' || m.shortName === m.model) m.shortName = pretty;
     }
     if (meta.contextWindow) m.contextWindow = meta.contextWindow;
     if (meta.maxOutput) m.maxOutput = meta.maxOutput;
@@ -1583,6 +1586,9 @@
       </div>
       <div class="section">
         <div class="section-title"><h3>Limits</h3><p>Advertised to Cursor so it budgets the conversation.</p></div>
+        ${lookup[index] && lookup[index].state === 'ok'
+          ? '<div class="lookup-note" style="padding:0 0 10px">Values from models.dev. If your endpoint allows a larger window, add it under Context sizes.</div>'
+          : ''}
         ${row('Context window', 'What Cursor budgets by default.', contextControl(m, index))}
         ${row('Context sizes', 'Also offered in the picker.', `<div class="chips" onclick="this.querySelector('input').focus()">
           ${(m.contextOptions || []).map((o, i) => `<span class="chip-item" title="${attr(Number(o.value).toLocaleString())} tokens"><b>${esc(o.label || fmtTokens(o.value))}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeContext(${index}, ${i})">×</button></span>`).join('')}
@@ -1592,6 +1598,9 @@
       </div>
       <div class="section">
         <div class="section-title"><h3>Reasoning</h3><p>Optional effort tiers exposed in the picker.</p></div>
+        ${(m.capabilities && m.capabilities.reasoning && !(effort && effort.tiers.length))
+          ? '<div class="lookup-note" style="padding:0 0 10px">This model exposes reasoning as an on/off toggle, not effort levels — Cursor shows its Thinking switch. Nothing to configure here.</div>'
+          : ''}
         ${row('Effort tiers', 'Picker levels.', `<div class="chips" onclick="this.querySelector('input').focus()">
           ${(effort ? effort.tiers : []).map((t, i) => `<span class="chip-item"><b>${esc(t.label || t.id)}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeTier(${index}, ${i})">×</button></span>`).join('')}
           <input class="chip-input" id="tier-input-${index}" placeholder="${effort && effort.tiers.length ? 'Add tier…' : 'low:Low'}" onkeydown="if(event.key==='Enter'){event.preventDefault();addTier(${index}, this)}">

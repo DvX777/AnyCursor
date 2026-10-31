@@ -89,6 +89,8 @@ function describe(entry) {
   const cost = entry.cost || {};
   const inputs = (entry.modalities && entry.modalities.input) || [];
   const tiers = effortTiers(entry);
+  const options = Array.isArray(entry.reasoning_options) ? entry.reasoning_options : (entry.reasoning_options ? [entry.reasoning_options] : []);
+  const reasoningMode = tiers.length ? 'effort' : (options.some((o) => o && o.type === 'toggle') ? 'toggle' : (entry.reasoning ? 'flag' : 'none'));
   return {
     id: entry.id || '',
     name: entry.name || entry.id || '',
@@ -102,6 +104,7 @@ function describe(entry) {
       streaming: true,
       cache: cost.cache_read != null || cost.cache_write != null,
     },
+    reasoningMode,
     effortTiers: tiers,
     effortDefault: tiers.some((tier) => tier.id === 'high')
       ? 'high'
