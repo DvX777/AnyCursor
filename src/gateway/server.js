@@ -957,6 +957,28 @@ function handleLocal(req, res) {
 
   if (req.method !== 'GET' && req.method !== 'HEAD') return false;
 
+  if (pathname === '/api/models-dev/providers' && (req.method === 'GET' || req.method === 'HEAD')) {
+    (async () => {
+      try {
+        if (!modelsDevCache.data || Date.now() - modelsDevCache.at > 10 * 60 * 1000) {
+          modelsDevCache = { at: Date.now(), data: await modelsDev.fetchModelsDev() };
+        }
+        const providers = Object.entries(modelsDevCache.data || {})
+          .map(([id, entry]) => ({
+            id,
+            name: (entry && entry.name) || id,
+            models: Object.keys((entry && entry.models) || {}).length,
+          }))
+          .filter((entry) => entry.models > 0)
+          .sort((a, b) => a.name.localeCompare(b.name));
+        sendJson(res, 200, { ok: true, providers }, req.method === 'HEAD');
+      } catch (error) {
+        sendJson(res, 502, { ok: false, error: String((error && error.message) || error) });
+      }
+    })();
+    return true;
+  }
+
   if (pathname === '/health' || pathname === '/api/status') {
     sendJson(res, currentConfig() ? 200 : 503, statusPayload(), headOnly);
     return true;

@@ -326,6 +326,12 @@
     display: none; max-height: 280px; overflow: auto;
   }
   .sel.open .sel-menu { display: block; }
+  .sel-filter {
+    position: sticky; top: 0; z-index: 1; width: 100%; height: 30px; margin-bottom: 5px;
+    padding: 0 9px; border: 1px solid var(--line-2); border-radius: 7px; background: #fff;
+    font: inherit; font-size: 12.5px; color: var(--ink);
+  }
+  .sel-filter:focus { outline: none; border-color: #b9c5d8; box-shadow: 0 0 0 3px rgba(16, 17, 20, .04); }
   .sel-opt {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 9px;
     border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13.5px;
@@ -856,6 +862,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 9 6 6 6-6"/></svg>
       </button>
       <div class="sel-menu" role="listbox">
+        ${options.length > 15 ? `<input class="sel-filter" type="text" placeholder="Filter…" onclick="event.stopPropagation()" oninput="filterSelect('${id}', this.value)">` : ''}
         ${options.map((o) => `<button type="button" class="sel-opt${o.value === cur.value ? ' on' : ''}" onclick="pickSelect('${id}', '${attr(o.value)}')">
           <span>${esc(o.label)}</span>
           <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 13 4 4L19 7"/></svg>
@@ -869,7 +876,19 @@
     if (!el) return;
     const open = el.classList.contains('open');
     document.querySelectorAll('.sel.open').forEach((x) => x.classList.remove('open'));
-    if (!open) el.classList.add('open');
+    if (open) return;
+    el.classList.add('open');
+    const filter = el.querySelector('.sel-filter');
+    if (filter) requestAnimationFrame(() => filter.focus());
+  }
+  function filterSelect(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const query = String(value || '').trim().toLowerCase();
+    el.querySelectorAll('.sel-opt').forEach((opt) => {
+      const hit = !query || opt.textContent.toLowerCase().includes(query);
+      opt.style.display = hit ? '' : 'none';
+    });
   }
   function pickSelect(id, value) {
     const entry = selRegistry.get(id);
@@ -1214,6 +1233,7 @@
   }
 
   function renderProviderDetail() {
+    if (!CATALOG_PROVIDERS) ensureCatalog();
     const name = route.provider;
     const p = CFG.providers[name] || {};
     const isBedrock = p.type === 'bedrock';
@@ -1242,7 +1262,9 @@
       </div>
       <div class="section">
         <div class="section-title"><h3>Metadata</h3><p>Used by model discovery and provider-specific headers.</p></div>
-        ${row('models.dev id', 'Loads effort tiers during <span class="mono">npm run discover</span>.', textInput(p.modelsDevProvider || '', `setProvider(route.provider, 'modelsDevProvider', this.value)`, { placeholder: 'opencode-go' }))}
+        ${row('Model catalogue', 'Used to look up limits and capabilities. Auto-detect reads it from your endpoint.',
+          `<div class="field-inline">${select(catalogOptions(p.modelsDevProvider), p.modelsDevProvider || '', (v) => setProvider(route.provider, 'modelsDevProvider', v))}</div>
+           <div class="lookup-note">${p.modelsDevProvider ? 'Pinned to this catalogue provider.' : 'Recommended: leave on auto-detect.'}</div>`)}
         ${row('API version header', 'Version header sent on every request.', textInput(p.version || '', `setProvider(route.provider, 'version', this.value)`, { placeholder: '2023-06-01' }))}
       </div>
     </div></div>`;
@@ -1438,6 +1460,35 @@
       <thead><tr><th style="width:300px">Model</th><th class="hide-sm" style="width:150px">Provider</th><th class="hide-sm">Capabilities</th><th class="hide-sm num" style="width:96px">Context</th><th style="width:120px">Status</th><th style="width:34px"></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
     filterRows();
+  }
+
+  let CATALOG_PROVIDERS = null;
+  async function ensureCatalog() {
+    if (CATALOG_PROVIDERS) return;
+    CATALOG_PROVIDERS = [];
+    try {
+      const res = await fetch('/api/models-dev/providers');
+      const data = await res.json();
+      CATALOG_PROVIDERS = data.ok ? data.providers : [];
+    } catch (_) { CATALOG_PROVIDERS = []; }
+    // A stale id from an older discovery run is not worth preserving: the
+    // endpoint detection handles it, so drop it instead of showing junk.
+    const current = route.provider && CFG.providers ? CFG.providers[route.provider] : null;
+    if (current && current.modelsDevProvider && !CATALOG_PROVIDERS.some((x) => x.id === current.modelsDevProvider)) {
+      delete current.modelsDevProvider;
+      markDirty();
+    }
+    if (route.view === 'providers' && route.provider) renderBody();
+  }
+  function catalogOptions(current) {
+    const opts = [{ value: '', label: 'Auto-detect from endpoint' }];
+    for (const provider of CATALOG_PROVIDERS || []) {
+      opts.push({ value: provider.id, label: provider.name && provider.name !== provider.id ? provider.name : provider.id });
+    }
+    if (current && !opts.some((o) => o.value === current)) {
+      opts.push({ value: current, label: `${current} (not in catalogue)` });
+    }
+    return opts;
   }
 
   const lookup = {};
