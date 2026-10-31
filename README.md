@@ -207,6 +207,8 @@ GET  /api/models          effective model list
 GET  /api/config          redacted config + warnings + restart requirements
 POST /api/config          validate, back up, save, apply live
 POST /api/config/reload   reload the file from disk
+POST /api/lookup-model    limits, reasoning and capabilities for a model id
+GET  /api/models-dev/providers   catalogue providers for the picker
 GET  /health              health endpoint
 ```
 
