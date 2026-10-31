@@ -1,15 +1,31 @@
 {
   "name": "anycursor",
   "displayName": "AnyCursor",
-  "description": "Use Cursor's native models and your own BYOK models side by side.",
-  "version": "0.3.0",
+  "description": "Bring your own BYOK models into Cursor's native Agent, tools, MCP, subagents and approvals through a local gateway.",
+  "version": "0.3.1",
   "publisher": "anycursor",
   "license": "MIT",
+  "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#f5f7fb",
+    "theme": "light"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
+    "AI",
     "Other"
+  ],
+  "keywords": [
+    "cursor",
+    "byok",
+    "llm",
+    "gateway",
+    "openai",
+    "anthropic",
+    "bedrock",
+    "local"
   ],
   "extensionKind": [
     "ui"
