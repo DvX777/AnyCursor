@@ -9,6 +9,10 @@ This extension supervises the local AnyCursor gateway that makes that possible.
 It is not a second app: you open Cursor the normal way and switch between
 Cursor's own models and your BYOK models in the native model picker.
 
+> Cursor's default Agent Window does not load third-party extensions, so this
+> extension activates in an IDE window (`Cursor.exe --classic`). The installer's
+> gateway watchdog keeps BYOK models working in every window either way.
+
 ## What it does
 
 - starts with Cursor and supervises the local gateway

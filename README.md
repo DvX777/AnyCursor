@@ -73,14 +73,17 @@ npm run install:windows
 
 Then open Cursor normally — from the Desktop, Start Menu or Taskbar shortcut.
 
+> **Cursor's Agent Window does not load extensions.** Cursor 3.x opens its glass/Agent window by default, and that surface runs no third-party extensions at all — not just AnyCursor. BYOK models still work there because the installer registers a gateway watchdog (below). The AnyCursor commands, status bar item and gateway supervision only appear in an IDE window, opened with `Cursor.exe --classic`. See [Troubleshooting](#extensions-dont-load-in-cursors-agent-window).
+
 The installer:
 
 1. seeds `%LOCALAPPDATA%\AnyCursor\config.json`
 2. stages the gateway inside the extension and builds a VSIX
 3. installs the extension with the Cursor CLI
-4. registers a login pre-warm task, or falls back to a hidden Startup entry
-5. patches Cursor shortcuts with the local backend flag
-6. waits for the gateway health endpoint
+4. registers the **AnyCursor Gateway Watchdog**, a per-user task that restarts the gateway within a minute if it stopped
+5. registers a login pre-warm task, or falls back to a hidden Startup entry
+6. patches Cursor shortcuts with the local backend flag
+7. waits for the gateway health endpoint
 
 Admin variant, one UAC prompt:
 
@@ -222,7 +225,7 @@ npm run install:windows:admin
 npm run uninstall:windows
 ```
 
-Uninstall removes the extension, login/Startup prewarm, and the shortcut flag. Your config and logs stay in `%LOCALAPPDATA%\AnyCursor` unless you pass `-RemoveData`.
+Uninstall removes the extension, the watchdog and login/Startup prewarm, and the shortcut flag. Your config and logs stay in `%LOCALAPPDATA%\AnyCursor` unless you pass `-RemoveData`.
 
 Shortcut backups live in:
 
@@ -289,13 +292,17 @@ The local loop needs `run_ready` prompt metadata and a recognized model family. 
 
 ### Extensions don't load in Cursor's Agent Window
 
-Cursor's default Agent Window (the glass UI) does not load third-party extensions, so the AnyCursor extension - like any other extension - only activates in the IDE window. Open one with:
+Cursor 3.x opens its glass **Agent Window** by default. That window loads Cursor's built-in extensions only — no third-party extension activates there, so AnyCursor's status bar item, commands and gateway supervision are absent. The install is still fine.
+
+Open an IDE window to use the extension:
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\cursor\Cursor.exe" --classic
 ```
 
-BYOK turns do not depend on that window: the installer registers a per-user **AnyCursor Gateway Watchdog** task that probes the gateway every minute and starts it again if it stopped. The extension is an extra layer of supervision, a status bar item and the command palette entries.
+You should then see the **AnyCursor** status bar item and `AnyCursor: Doctor` in the command palette. Shortcuts still launch the Agent Window; that is expected.
+
+BYOK turns do not depend on that window: the per-user **AnyCursor Gateway Watchdog** task probes the gateway every minute and starts it again if it stopped, so a model you added keeps answering even in a window with no extensions.
 
 ### Gateway is down
 
