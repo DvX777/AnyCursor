@@ -287,6 +287,16 @@ Cursor is blocking the turn before it reaches AnyCursor. Check:
 
 The local loop needs `run_ready` prompt metadata and a recognized model family. Update AnyCursor, then select the AnyCursor model again. If the message names an unrecognized family, the cached Cursor catalog is stale.
 
+### Extensions don't load in Cursor's Agent Window
+
+Cursor's default Agent Window (the glass UI) does not load third-party extensions, so the AnyCursor extension - like any other extension - only activates in the IDE window. Open one with:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\cursor\Cursor.exe" --classic
+```
+
+BYOK turns do not depend on that window: the installer registers a per-user **AnyCursor Gateway Watchdog** task that probes the gateway every minute and starts it again if it stopped. The extension is an extra layer of supervision, a status bar item and the command palette entries.
+
 ### Gateway is down
 
 ```powershell

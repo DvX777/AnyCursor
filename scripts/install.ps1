@@ -170,6 +170,40 @@ function Remove-StartupFallback {
   }
 }
 
+function Install-Watchdog {
+  param([string]$Node)
+  $dataDir = Join-Path $env:LOCALAPPDATA 'AnyCursor'
+  $launcher = Join-Path $dataDir 'AnyCursor Gateway.exe'
+  $watchName = 'AnyCursor Gateway Watchdog'
+
+  $launcherReady = $false
+  try {
+    & (Join-Path $PSScriptRoot 'build-launcher.ps1') -Node $Node -OutDir $dataDir | Out-Null
+    $launcherReady = Test-Path $launcher
+  } catch {
+    Write-Warning "Could not build AnyCursor Gateway.exe ($($_.Exception.Message))."
+  }
+  if (-not $launcherReady) {
+    Write-Warning "Skipping the watchdog: $launcher is missing."
+    return $false
+  }
+
+  try {
+    $action = New-ScheduledTaskAction -Execute $launcher
+    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
+      -RepetitionInterval (New-TimeSpan -Minutes 1)
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+      -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -StartWhenAvailable
+    Register-ScheduledTask -TaskName $watchName -Action $action -Trigger $trigger -Settings $settings -Force `
+      -Description 'Keeps the AnyCursor gateway running, even when Cursor runs without extensions.' | Out-Null
+    Write-Host "Registered the watchdog task '$watchName' (checks every minute)." -ForegroundColor Green
+    return $true
+  } catch {
+    Write-Warning "Watchdog task registration failed ($($_.Exception.Message))."
+    return $false
+  }
+}
+
 function Register-TaskElevated {
   param([string]$Node, [string]$Gateway, [string]$ConfigFile, [string]$WorkingDir)
   $helper = Join-Path $PSScriptRoot 'register-gateway-task.ps1'
@@ -188,6 +222,10 @@ function Register-TaskElevated {
 }
 
 if (-not $SkipTask) {
+  # Independent of the admin-only login task: the watchdog keeps the gateway alive
+  # when Cursor runs in a window that does not load third-party extensions.
+  Install-Watchdog -Node $node | Out-Null
+
   $taskOk = $false
   $taskFailure = ''
   try {
@@ -279,5 +317,5 @@ if ($ready) {
 }
 Write-Host "Config:    $Config"
 Write-Host "Dashboard: http://127.0.0.1:$Port/"
-Write-Host "Open Cursor normally; the extension keeps the gateway alive."
+Write-Host "Open Cursor normally; the watchdog keeps the gateway alive."
 Write-Host "Uninstall with: powershell -ExecutionPolicy Bypass -File .\scripts\uninstall.ps1"

@@ -1763,6 +1763,24 @@
       delete m.effort;
     }
   }
+  async function addDefaultTiers(index) {
+    const m = modelAt(index);
+    if (!m) return;
+    m.effort = {
+      tiers: [
+        { id: 'low', label: 'Low', value: 'low' },
+        { id: 'medium', label: 'Medium', value: 'medium' },
+        { id: 'high', label: 'High', value: 'high' },
+      ],
+      default: 'high',
+      requestField: (m.effort && m.effort.requestField) || 'reasoning_effort',
+    };
+    markDirty();
+    renderBody();
+    await saveConfig();
+    toast('Low / Medium / High are advertised to Cursor now, so the model gets a picker entry. Remove them if your provider rejects reasoning_effort.', 'good', 'Effort levels added');
+  }
+
   async function lookupModel(index) {
     const m = modelAt(index);
     if (!m) return;
@@ -1838,7 +1856,10 @@
       <div class="section">
         <div class="section-title"><h3>Reasoning</h3><p>Optional effort tiers exposed in the picker.</p></div>
         ${(m.capabilities && m.capabilities.reasoning && !(effort && effort.tiers.length))
-          ? '<div class="lookup-note" style="padding:0 0 10px">This model exposes reasoning as an on/off toggle, not effort levels — Cursor shows its Thinking switch. Nothing to configure here.</div>'
+          ? `<div class="lookup-note" style="padding:0 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+               <span>This model exposes reasoning as an on/off toggle. Cursor only shows a picker — and lets you change the model's options — when effort levels are advertised.</span>
+               <button class="btn" onclick="addDefaultTiers(${index})">Add effort levels</button>
+             </div>`
           : ''}
         ${row('Effort tiers', 'Picker levels.', `<div class="chips" onclick="this.querySelector('input').focus()">
           ${(effort ? effort.tiers : []).map((t, i) => `<span class="chip-item"><b>${esc(t.label || t.id)}</b><button type="button" title="Remove" onclick="event.stopPropagation();removeTier(${index}, ${i})">×</button></span>`).join('')}

@@ -6,12 +6,15 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 
-$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-if ($task) {
-  Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-  Write-Host "Removed login task '$TaskName'." -ForegroundColor Green
-} else {
-  Write-Host "Login task '$TaskName' was not registered." -ForegroundColor Yellow
+$taskNames = @($TaskName, 'AnyCursor Gateway Watchdog')
+foreach ($name in $taskNames) {
+  $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+  if ($task) {
+    Unregister-ScheduledTask -TaskName $name -Confirm:$false
+    Write-Host "Removed scheduled task '$name'." -ForegroundColor Green
+  } else {
+    Write-Host "Scheduled task '$name' was not registered." -ForegroundColor Yellow
+  }
 }
 
 $startupEntries = @(
