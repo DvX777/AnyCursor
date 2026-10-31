@@ -637,6 +637,7 @@
     ["x-ai", "x"],
     ["kimi", "moonshotai"],
     ["moonshot", "moonshotai"],
+    ["ollama", "ollama"],
     ["llama", "meta"],
     ["meta-llama", "meta"],
     ["phi-", "microsoft"],
@@ -646,7 +647,6 @@
     ["perplexity", "perplexity"],
     ["sonar", "perplexity"],
     ["hugging", "huggingface"],
-    ["ollama", "ollama"],
     ["baidu", "baidu"],
     ["ernie", "baidu"],
     ["bytedance", "bytedance"],
@@ -1138,7 +1138,29 @@
     CFG.providers[name] = { type: 'openai-compatible', baseUrl: '', apiKey: '' };
     markDirty();
     go('providers', { provider: name });
+    const nameInput = document.querySelector('.row input[type=text]');
+    if (nameInput) { nameInput.focus(); nameInput.select(); }
   }
+  function renameProvider(oldName, value) {
+    const next = String(value || '').trim();
+    if (!next || next === oldName) { renderBody(); return; }
+    if (CFG.providers[next]) {
+      toast('Another provider already uses that name.', 'bad', 'Name taken');
+      renderBody();
+      return;
+    }
+    const provider = CFG.providers[oldName];
+    if (!provider) return;
+    const rebuilt = {};
+    for (const [key, val] of Object.entries(CFG.providers)) rebuilt[key === oldName ? next : key] = val;
+    CFG.providers = rebuilt;
+    for (const model of CFG.models || []) if (model.provider === oldName) model.provider = next;
+    route.provider = next;
+    markDirty();
+    render();
+    toast(`Providers and models now use "${esc(next)}".`, 'good', 'Renamed');
+  }
+
   function removeProvider(name) {
     const used = (CFG.models || []).filter((m) => m.provider === name);
     if (used.length) {
@@ -1191,6 +1213,7 @@
     const form = `<div class="panel"><div class="panel-body">
       <div class="section">
         <div class="section-title"><h3>Connection</h3><p>Where requests for this provider's models are sent.</p></div>
+        ${row('Name', 'Used to reference this provider in models.', `<input type="text" value="${attr(name)}" onchange="renameProvider(route.provider, this.value)">`)}
         ${row('Type', 'Request and response protocol.', select(TYPES.map((t) => ({ value: t, label: t })), p.type, (v) => setProviderType(route.provider, v)))}
         ${row('Base URL', 'Root of the API, without the endpoint path.', textInput(p.baseUrl || '', `setProvider(route.provider, 'baseUrl', this.value)`, { placeholder: 'https://api.example.com/v1' }))}
         ${row('Endpoint path', 'Appended to the base URL for chat requests.', textInput(p.endpoint || '', `setProvider(route.provider, 'endpoint', this.value)`, { placeholder: '/chat/completions' }))}
