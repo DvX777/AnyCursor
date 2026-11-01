@@ -321,6 +321,10 @@ Expected in Cursor 3.x: the Agent Window scans a fixed allowlist of Cursor's own
 
 Cursor reads the model catalog when a window opens. If the gateway was down at that exact moment, that window lists native models only. The watchdog starts the gateway within seconds; reload the window (command palette → **Reload Window**) or reopen Cursor to fetch the catalog again.
 
+### Context usage chart is empty for AnyCursor models
+
+Cursor fills the **Context Usage** tray while it assembles a turn on its connect path. BYOK turns that run in the agent host's local loop give Cursor character counts but no token estimates, so the tray stays empty (the ring percentage can still appear). This is Cursor-side and does not affect context handling, tools or the models themselves.
+
 ### Cursor refuses a native model ("does not support custom API keys")
 
 Cursor gates its own models by plan. On a free plan the agent backend allows only the included set (often just Auto); selecting another native model is refused by Cursor before the request reaches AnyCursor, so nothing appears in `traffic.ndjson` and no AnyCursor setting can unlock it. Models you add to AnyCursor keep working.
