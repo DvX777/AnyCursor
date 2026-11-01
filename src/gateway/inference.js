@@ -380,13 +380,25 @@ function convertMessages(messages) {
   return out;
 }
 
+function sanitizeToolSchema(schema) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    return { type: 'object', properties: {} };
+  }
+  const out = { ...schema };
+  if (out.type == null) out.type = 'object';
+  if (out.type === 'object' && (!out.properties || typeof out.properties !== 'object' || Array.isArray(out.properties))) {
+    out.properties = {};
+  }
+  return out;
+}
+
 function convertTools(tools) {
   return tools.map((tool) => ({
     type: 'function',
     function: {
       name: tool.name,
       description: tool.description,
-      parameters: tool.parameters || { type: 'object', properties: {} },
+      parameters: sanitizeToolSchema(tool.parameters),
     },
   }));
 }
