@@ -103,6 +103,16 @@ http://127.0.0.1:43110/
 
 Add a provider, add a model, choose its display name and effort/context options, then **Save changes**. Changes apply to new requests without restarting the gateway.
 
+### Cursor settings AnyCursor does not need
+
+AnyCursor does not add an API key to Cursor and does not use Cursor's **Override OpenAI Base URL**. That field only feeds Cursor's own OpenAI/xAI key path; pointing it at the gateway does not work, because the gateway speaks Cursor's backend protocol rather than `/v1/chat/completions`.
+
+Leave both settings untouched and let AnyCursor handle routing. Native tools, MCP servers, subagents and approvals keep working exactly as before, with Cursor's own models and with AnyCursor models.
+
+If you do configure a Cursor key or override URL, Cursor can refuse first-party models with "This model does not support custom API keys". That is Cursor's key mode, not an AnyCursor error. Configure providers and models in the AnyCursor dashboard instead; the two paths are independent.
+
+Manual routing, only if you skip shortcut patching: launch Cursor with `--test-backend-url http://127.0.0.1:43110`, or run **AnyCursor: Repair Cursor Shortcuts**. Nothing else needs to change in Cursor.
+
 ## Supported Providers
 
 | Provider | Type | Transport |
@@ -315,7 +325,7 @@ Cursor reads the model catalog when a window opens. If the gateway was down at t
 
 Cursor gates its own models by plan. On a free plan the agent backend allows only the included set (often just Auto); selecting another native model is refused by Cursor before the request reaches AnyCursor, so nothing appears in `traffic.ndjson` and no AnyCursor setting can unlock it. Models you add to AnyCursor keep working.
 
-On a paid plan the same message can also appear when a custom provider key is stored in Cursor's **Settings → Models → API Keys**: some models do not accept custom keys. AnyCursor never reads or changes that configuration.
+On a paid plan the same message can also appear when a custom provider key or an **Override OpenAI Base URL** is stored in Cursor's **Settings → Models → API Keys**: Cursor tries the custom-key path, and some first-party models do not accept it. AnyCursor never reads or changes that configuration. See [Cursor settings AnyCursor does not need](#cursor-settings-anycursor-does-not-need).
 
 ### Gateway is down
 
