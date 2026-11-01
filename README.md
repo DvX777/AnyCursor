@@ -105,9 +105,9 @@ Add a provider, add a model, choose its display name and effort/context options,
 
 ### Cursor settings AnyCursor does not need
 
-AnyCursor does not add an API key to Cursor and does not use Cursor's **Override OpenAI Base URL**. That field only feeds Cursor's own OpenAI/xAI key path; pointing it at the gateway does not work, because the gateway speaks Cursor's backend protocol rather than `/v1/chat/completions`.
+AnyCursor does not add an API key to Cursor and does not use Cursor's **Override OpenAI Base URL**. Keep Cursor's API key empty and the override **off** when using AnyCursor: that path belongs to Cursor's own OpenAI/xAI models, and while it is active Cursor can refuse first-party models with "This model does not support custom API keys".
 
-Leave both settings untouched and let AnyCursor handle routing. Native tools, MCP servers, subagents and approvals keep working exactly as before, with Cursor's own models and with AnyCursor models.
+With both left empty, AnyCursor handles routing and native tools, MCP servers, subagents and approvals keep working exactly as before, with Cursor's own models and with AnyCursor models.
 
 If you do configure a Cursor key or override URL, Cursor can refuse first-party models with "This model does not support custom API keys". That is Cursor's key mode, not an AnyCursor error. Configure providers and models in the AnyCursor dashboard instead; the two paths are independent.
 
