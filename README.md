@@ -311,6 +311,12 @@ Expected in Cursor 3.x: the Agent Window scans a fixed allowlist of Cursor's own
 
 Cursor reads the model catalog when a window opens. If the gateway was down at that exact moment, that window lists native models only. The watchdog starts the gateway within seconds; reload the window (command palette → **Reload Window**) or reopen Cursor to fetch the catalog again.
 
+### Cursor refuses a native model ("does not support custom API keys")
+
+Cursor gates its own models by plan. On a free plan the agent backend allows only the included set (often just Auto); selecting another native model is refused by Cursor before the request reaches AnyCursor, so nothing appears in `traffic.ndjson` and no AnyCursor setting can unlock it. Models you add to AnyCursor keep working.
+
+On a paid plan the same message can also appear when a custom provider key is stored in Cursor's **Settings → Models → API Keys**: some models do not accept custom keys. AnyCursor never reads or changes that configuration.
+
 ### Gateway is down
 
 ```powershell
@@ -321,7 +327,7 @@ Then run **AnyCursor: Doctor** from the Cursor command palette.
 
 ## Principles
 
-- **Cursor stays Cursor.** Native models, tools, MCP, subagents, approvals and history remain native.
+- **Cursor stays Cursor.** Native models, tools, MCP, subagents, approvals and history remain native; native model availability follows your Cursor plan.
 - **Your keys stay yours.** BYOK traffic is routed locally, not through a separate hosted service.
 - **Open Cursor normally.** No launcher and no visible companion app.
 - **Configuration over hardcoding.** Providers, endpoints, models and display names are data.
