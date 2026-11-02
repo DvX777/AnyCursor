@@ -144,7 +144,8 @@ The token can also be sent as `Authorization: Bearer <token>` or
 
 ## Encryption and delegated access
 
-Sensitive values are encrypted at rest with AES-256-GCM. The host key lives at:
+Sensitive values are encrypted at rest with AES-256-GCM. On Windows the host
+key lives in Windows Credential Manager; on Linux it is at:
 
 ```text
 <gateway.dataDir>/secrets/host.key

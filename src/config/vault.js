@@ -26,6 +26,10 @@ class Vault {
     this.dataDir = dataDir;
     this.keyPath = options.keyPath || path.join(dataDir, 'secrets', 'host.key');
     this.env = options.env || process.env;
+    this.store = options.store || null;
+    this.storeTarget = options.storeTarget || 'AnyCursor/host/vault-key';
+    this.storage = 'file';
+    this.importedFromFile = false;
     this.key = null;
     this.error = '';
     try {
@@ -35,24 +39,59 @@ class Vault {
     }
   }
 
-  static forConfig(file, raw, env = process.env) {
+  static forConfig(file, raw, env = process.env, store = null) {
     const configured = raw && raw.gateway && raw.gateway.dataDir
       ? expand(raw.gateway.dataDir, env)
       : defaultDataDir(env);
     const dataDir = path.isAbsolute(configured)
       ? configured
       : path.resolve(path.dirname(file), configured || '.');
-    return new Vault(dataDir, { env });
+    return new Vault(dataDir, { env, store });
+  }
+
+  decodeKey(value, source) {
+    let key;
+    try {
+      key = Buffer.from(String(value || ''), 'base64');
+    } catch (_) {
+      throw new Error(`invalid host key encoding in ${source}`);
+    }
+    if (key.length !== KEY_BYTES) throw new Error(`invalid host key length in ${source} (${key.length})`);
+    return key;
   }
 
   loadOrCreateKey() {
-    fs.mkdirSync(path.dirname(this.keyPath), { recursive: true, mode: 0o700 });
-    if (fs.existsSync(this.keyPath)) {
-      const key = fs.readFileSync(this.keyPath);
-      if (key.length !== KEY_BYTES) throw new Error(`invalid host key length (${key.length})`);
-      return key;
+    const stored = this.store ? this.store.get(this.storeTarget) : '';
+    if (stored) {
+      this.storage = 'credential-manager';
+      return this.decodeKey(stored, 'Credential Manager');
     }
+
+    if (fs.existsSync(this.keyPath)) {
+      const fileKey = fs.readFileSync(this.keyPath);
+      if (fileKey.length !== KEY_BYTES) throw new Error(`invalid host key length (${fileKey.length})`);
+      if (this.store) {
+        try {
+          this.store.set(this.storeTarget, fileKey.toString('base64'));
+          this.importedFromFile = true;
+          this.storage = 'credential-manager';
+        } catch (_) {
+          this.storage = 'file';
+        }
+      }
+      return fileKey;
+    }
+
     const key = crypto.randomBytes(KEY_BYTES);
+    if (this.store) {
+      try {
+        this.store.set(this.storeTarget, key.toString('base64'));
+        this.storage = 'credential-manager';
+        return key;
+      } catch (_) { /* fall back to the file */ }
+    }
+
+    fs.mkdirSync(path.dirname(this.keyPath), { recursive: true, mode: 0o700 });
     fs.writeFileSync(this.keyPath, key, { mode: 0o600, flag: 'wx' });
     if (process.platform === 'win32') {
       const user = process.env.USERNAME;
@@ -66,6 +105,17 @@ class Vault {
       }
     }
     return key;
+  }
+
+  removeImportedFileKey() {
+    if (!this.importedFromFile) return false;
+    try {
+      if (fs.existsSync(this.keyPath)) fs.unlinkSync(this.keyPath);
+      this.importedFromFile = false;
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   get enabled() {

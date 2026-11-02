@@ -382,6 +382,8 @@ Then run **AnyCursor: Doctor** from the Cursor command palette.
 - Login cookies are HttpOnly/SameSite, state-changing requests are origin-checked, login and writes are rate-limited, and decisions land in `logs/access.ndjson`.
 - A public bind without a token refuses to start; loopback, RFC1918 and Tailscale clients are trusted by default.
 
+Secrets are stored in an authenticated encrypted envelope. On Windows the host key lives in **Windows Credential Manager**, not next to the config; on other platforms it is a `0600` file under `secrets/`. Plaintext configs migrate on load and the migration backup is encrypted as well. **Back up the host key** — without it the config cannot be decrypted. Knowing the format does not reveal the key; if someone obtains the key or controls the host, that is host compromise and encryption cannot stop it.
+
 See [SECURITY.md](SECURITY.md) for the threat model, role matrix and operator checklist.
 
 ## Principles

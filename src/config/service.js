@@ -182,14 +182,14 @@ class ConfigService {
     try {
       const text = fs.readFileSync(this.file, 'utf8').replace(/^\uFEFF/, '');
       const raw = JSON.parse(text);
-      this.vault = Vault.forConfig(this.file, raw);
+      this.vault = Vault.forConfig(this.file, raw, process.env, this.secrets);
       let diskRaw = raw;
       if (this.vault.enabled) {
         try {
           const encrypted = this.vault.encryptConfig(raw);
           if (JSON.stringify(encrypted) !== JSON.stringify(raw)) {
             const backup = `${this.file}.${Date.now()}.encryption.bak`;
-            fs.copyFileSync(this.file, backup);
+            fs.writeFileSync(backup, JSON.stringify(encrypted, null, 2) + '\n', { mode: 0o600 });
             const temp = `${this.file}.${process.pid}.enc.tmp`;
             fs.writeFileSync(temp, JSON.stringify(encrypted, null, 2) + '\n');
             fs.renameSync(temp, this.file);
@@ -209,6 +209,9 @@ class ConfigService {
       if (this.encryptionError) {
         loaded.warnings.unshift(`Secret encryption warning: ${this.encryptionError}`);
       }
+      if (this.vault.storage === 'credential-manager' && this.vault.removeImportedFileKey()) {
+        loaded.warnings.push('Host key moved from the data directory to Windows Credential Manager');
+      }
       this.raw = diskRaw;
       this.config = loaded.config;
       this.warnings = loaded.warnings;
@@ -216,7 +219,8 @@ class ConfigService {
       this.encryption = {
         enabled: this.vault.enabled && !this.encryptionError,
         algorithm: ALGORITHM,
-        keyPath: this.vault.enabled ? this.vault.keyPath : '',
+        keyPath: this.vault.storage === 'file' && this.vault.enabled ? this.vault.keyPath : '',
+        storage: this.vault.storage,
       };
       return loaded;
     } catch (error) {
@@ -256,7 +260,8 @@ class ConfigService {
     this.encryption = {
       enabled: !!this.vault && this.vault.enabled,
       algorithm: ALGORITHM,
-      keyPath: this.vault && this.vault.enabled ? this.vault.keyPath : '',
+      keyPath: this.vault && this.vault.storage === 'file' && this.vault.enabled ? this.vault.keyPath : '',
+      storage: this.vault ? this.vault.storage : 'none',
     };
     return { config: this.config, warnings: this.warnings, backup };
   }

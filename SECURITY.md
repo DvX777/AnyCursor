@@ -25,22 +25,28 @@ inside the trust boundary. No application-level control can undo that.
 Provider keys, model keys, AWS secrets and `gateway.accessToken` are encrypted
 with **AES-256-GCM** before they are written to disk.
 
-- The key is a random 32-byte host key at
-  `<gateway.dataDir>/secrets/host.key`.
-- The file is created with owner-only permissions (mode `0600`; `icacls` on
-  Windows) and is **outside** the config file.
-- The config stores values as `enc:v1:<iv>:<tag>:<ciphertext>`.
-- Existing plaintext configs are migrated on load; a
-  `*.encryption.bak` backup is written first.
+- On Windows, the host key is stored in **Windows Credential Manager** (DPAPI)
+  and is not kept next to the config. On other platforms it is a random 32-byte
+  file at `<gateway.dataDir>/secrets/host.key` with owner-only permissions
+  (mode `0600`).
+- The config contains only an authenticated encrypted envelope; no key material
+  is stored with it.
+- Existing plaintext configs are migrated on load; an **encrypted**
+  `*.encryption.bak` is written first.
 - Environment placeholders such as `${OPENCODE_API_KEY}` are not encrypted;
   they are resolved at load time.
+- On Windows with Credential Manager available, provider keys are protected by
+  Windows DPAPI; the host vault covers the owner token and any remaining inline
+  values.
 
-On Windows, the Credential Manager store is still used for provider keys when
-available; the host vault covers everything that remains inline (including the
-owner token).
+**Back up the host key.** On Windows, export it from Credential Manager with the
+credential helper before moving profiles or machines. On other platforms, back
+up `secrets/host.key`. Without the key, encrypted values cannot be recovered.
 
-**Back up the host key.** Without it, encrypted values cannot be recovered.
-Copying `config.json` to another machine does not reveal the secrets.
+Knowing the algorithm and layout does not reveal the key: AES-256-GCM is only
+decryptable with it. If an attacker obtains the host key itself, or controls the
+host, encryption cannot protect you — that is host compromise, and it is outside
+what any application-level vault can stop.
 
 ## ABAC, not just roles
 
