@@ -57,6 +57,23 @@
           "default": true,
           "description": "Treat loopback, RFC1918, Tailscale and ULA addresses as trusted without a token."
         },
+        "grants": {
+          "type": "array",
+          "description": "Scoped access grants. Tokens are stored as SHA-256 hashes; owner is the accessToken.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "tokenHash"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "role": { "enum": ["admin", "viewer", "client"] },
+              "tokenHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+              "createdAt": { "type": "string" },
+              "expiresAt": { "type": "string" }
+            }
+          }
+        },
         "upstream": {
           "type": "string"
         },

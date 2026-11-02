@@ -142,6 +142,36 @@ network, the dashboard shows a login page. `/health` stays open for monitoring.
 The token can also be sent as `Authorization: Bearer <token>` or
 `X-AnyCursor-Token` for scripts.
 
+## Encryption and delegated access
+
+Sensitive values are encrypted at rest with AES-256-GCM. The host key lives at:
+
+```text
+<gateway.dataDir>/secrets/host.key
+```
+
+Keep it readable only by the service user and **back it up**. The config file is
+useless on another machine without this key.
+
+Create scoped tokens from **Dashboard → Access** (owner only) or with the API:
+
+```bash
+curl -s -X POST http://127.0.0.1:43110/api/access/grants \
+  -H "Authorization: Bearer $ANY_CURSOR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"QA","role":"viewer","expiresInDays":30}'
+```
+
+- `admin` — read the dashboard and run inference; no writes, no secrets, no grants.
+- `viewer` — read-only dashboard.
+- `client` — inference only, suitable for Cursor clients.
+- Public-network principals can never write or manage grants.
+
+Tokens are shown once and stored only as SHA-256 hashes. Revoke with
+`DELETE /api/access/grants?id=<id>`.
+
+See [SECURITY.md](../SECURITY.md) for the full role matrix and threat model.
+
 ## Cursor client settings
 
 On the client, in `config.json`:
@@ -163,6 +193,8 @@ or pass `--test-backend-url` yourself.
 - [ ] Gateway bound to loopback, a private IP, or Tailscale — not the public internet.
 - [ ] `gateway.publicUrl` and `cursor.backendUrl` use the address clients actually reach.
 - [ ] `gateway.accessToken` set if the bind can be reached publicly.
+- [ ] Keep `secrets/host.key` backed up and readable only by the service user.
 - [ ] Provider keys live in environment variables, not in the repository.
+- [ ] Create per-person grants instead of sharing the owner token.
 - [ ] TLS is terminated by Caddy/Tailscale if traffic leaves a trusted network.
 - [ ] Firewall allows only the ports you intend to expose.

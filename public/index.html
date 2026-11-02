@@ -575,6 +575,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18h4.3a3 3 0 0 0 3-3V8.2"/></svg>
         Gateway
       </button>
+      <button class="nav-item" data-view="access" onclick="go('access')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        Access
+      </button>
       <div class="nav-label">Advanced</div>
       <button class="nav-item" data-view="raw" onclick="go('raw')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/></svg>
@@ -603,6 +607,7 @@
       </label>
       <div class="top-actions">
         <span class="status-pill"><span class="dot" id="top-dot"></span><span id="top-state">Connecting…</span></span>
+        <span class="pill" id="top-role" hidden style="font-size:11px;padding:4px 9px"></span>
         <div class="notif-wrap">
           <button class="icon-btn" id="notif-btn" title="Notifications" onclick="toggleNotifs(event)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10.5 20a2 2 0 0 0 3 0"/></svg>
@@ -646,10 +651,11 @@
 
   const TYPES = ['openai-compatible', 'anthropic', 'google', 'azure-openai', 'bedrock'];
   const TITLES = {
-    overview: ['Home', 'Status of the local gateway and what Cursor can see.'],
+    overview: ['Home', 'Status of the gateway and what Cursor can see.'],
     providers: ['Providers', 'Endpoints and credentials used to reach your models.'],
     models: ['Models', 'Every model Cursor can pick, and where its requests go.'],
     gateway: ['Gateway', 'Listener, upstream and fallback behaviour.'],
+    access: ['Access', 'Scoped tokens, roles and the owner boundary.'],
     raw: ['Raw JSON', 'Edit the configuration file directly.'],
   };
 
@@ -954,6 +960,7 @@
     if (route.view === 'providers') return route.provider ? renderProviderDetail() : renderProviderList();
     if (route.view === 'models') return route.model !== null ? renderModelDetail() : renderModelList();
     if (route.view === 'gateway') return renderGateway();
+    if (route.view === 'access') return renderAccess();
     if (route.view === 'raw') return renderRaw();
   }
 
@@ -1220,7 +1227,7 @@
 
     const summary = `<div class="summary">
       <div class="stat"><div class="k">Models routed</div><div class="v">${models.length}</div><div class="f">${enabled} enabled · ${models.length - enabled} off</div></div>
-      <div class="stat"><div class="k">Providers</div><div class="v">${providers.length}</div><div class="f">${providers.length ? 'credentials stored locally' : 'none configured'}</div></div>
+      <div class="stat"><div class="k">Providers</div><div class="v">${providers.length}</div><div class="f">${providers.length ? 'credentials stored on this host' : 'none configured'}</div></div>
       <div class="stat"><div class="k">Uptime</div><div class="v" data-uptime>${fmtUptime(uptimeNow())}</div><div class="f">${s.routing && s.routing.nativePassthrough ? 'native passthrough on' : 'passthrough off'}</div></div>
       <div class="flow-wrap">
         <div class="flow">
@@ -1981,6 +1988,95 @@
   }
 
   /* ---------------- raw ---------------- */
+  function renderAccess() {
+    const role = STATUS && STATUS.auth ? STATUS.auth.role : 'owner';
+    const encrypted = !!(STATUS && STATUS.encryption && STATUS.encryption.enabled);
+    if (role !== 'owner') {
+      $('page-body').innerHTML = `<div class="empty">Access grants are managed by the owner on the host. You are signed in as <b>${esc(role)}</b>.</div>`;
+      return;
+    }
+    $('page-body').innerHTML = `
+      <div class="section">
+        <div class="section-title"><h3>Owner boundary</h3><p>Only the machine owner creates or revokes grants. Provider secrets stay encrypted on the host and are never returned by the API.</p></div>
+        <div class="row"><div><div class="label">Encryption at rest</div><div class="desc">AES-256-GCM with a host key stored outside the config file.</div></div><div class="control"><span class="pill">${encrypted ? 'enabled' : 'not available'}</span></div></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><h3>Create a grant</h3><p>Scoped tokens for teammates. The token is shown once.</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="grant-name" placeholder="Name (e.g. QA)" style="min-width:180px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit">
+          <select id="grant-role" style="padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit">
+            <option value="viewer">viewer - read-only dashboard</option>
+            <option value="admin">admin - read + inference, no writes</option>
+            <option value="client">client - inference only</option>
+          </select>
+          <input id="grant-days" type="number" min="0" max="365" value="30" title="Expiry in days; 0 = no expiry" style="width:100px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit">
+          <button class="btn primary" onclick="createGrant()">Create grant</button>
+        </div>
+        <div id="grant-token" style="margin-top:12px"></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><h3>Active grants</h3><p>Revoke a token immediately. Expired tokens stop working on their own.</p></div>
+        <div id="grants-list" class="empty">Loading grants…</div>
+      </div>`;
+    loadGrants();
+  }
+
+  async function loadGrants() {
+    const box = $('grants-list');
+    if (!box) return;
+    try {
+      const res = await fetch('/api/access/grants', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) {
+        box.innerHTML = `<div class="empty">${esc(data.error || 'Could not load grants')}</div>`;
+        return;
+      }
+      const grants = data.grants || [];
+      if (!grants.length) {
+        box.innerHTML = '<div class="empty">No grants yet. Create one above.</div>';
+        return;
+      }
+      box.className = '';
+      box.innerHTML = `<table class="table"><thead><tr><th>Name</th><th>Role</th><th>Created</th><th>Expires</th><th></th></tr></thead><tbody>${grants.map((g) => `<tr><td>${esc(g.name)}</td><td><span class="pill">${esc(g.role)}</span></td><td class="muted">${esc((g.createdAt || '').slice(0, 10))}</td><td class="muted">${esc(g.expiresAt ? g.expiresAt.slice(0, 10) : 'never')}</td><td style="text-align:right"><button class="btn danger" onclick="revokeGrant('${esc(g.id)}')">Revoke</button></td></tr>`).join('')}</tbody></table>`;
+    } catch (error) {
+      box.innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+    }
+  }
+
+  async function createGrant() {
+    const name = ($('grant-name').value || '').trim();
+    const role = $('grant-role').value;
+    const days = Number($('grant-days').value || 0);
+    try {
+      const res = await fetch('/api/access/grants', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, role, expiresInDays: days }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast(esc(data.error || 'Could not create grant'), 'bad', 'Access'); return; }
+      $('grant-token').innerHTML = `<div class="lookup-note" style="padding:12px"><div style="font-weight:600;margin-bottom:6px">Token for ${esc(data.grant.name)} - shown once</div><code class="mono" style="word-break:break-all">${esc(data.token)}</code><div style="margin-top:8px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(data.token)}');toast('Token copied.','good','Access')">Copy token</button></div></div>`;
+      $('grant-name').value = '';
+      loadGrants();
+      toast('Grant created. Give the token to your teammate now; it will not be shown again.', 'good', 'Access');
+    } catch (error) {
+      toast(esc(error.message), 'bad', 'Access');
+    }
+  }
+
+  async function revokeGrant(id) {
+    try {
+      const res = await fetch('/api/access/grants?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { toast(esc(data.error || 'Could not revoke'), 'bad', 'Access'); return; }
+      loadGrants();
+      toast('Grant revoked.', 'good', 'Access');
+    } catch (error) {
+      toast(esc(error.message), 'bad', 'Access');
+    }
+  }
+
+
   function renderRaw() {
     $('page-body').innerHTML = `<div class="panel"><div class="panel-head"><h2>Configuration</h2><span class="sub">Stored secrets appear empty — leave them empty to keep the saved value.</span></div>
       <div class="panel-body" style="padding:14px 18px 18px"><textarea id="raw-json" spellcheck="false" style="min-height:62vh;resize:none;font-family:var(--mono);font-size:12.5px;line-height:1.7"></textarea></div></div>`;
@@ -2084,6 +2180,17 @@
       renderNotifs();
       $('top-dot').className = 'dot ' + (s.ok ? 'ok' : 'bad');
       $('top-state').textContent = s.ok ? 'Gateway ready' : 'Config error';
+      const role = s.auth && s.auth.role;
+      const badge = $('top-role');
+      if (badge) {
+        badge.hidden = !role;
+        if (role) {
+          badge.textContent = role;
+          badge.title = `${s.auth.via} · ${s.auth.network}${s.encryption && s.encryption.enabled ? ' · secrets encrypted' : ''}`;
+        }
+      }
+      const avatar = document.querySelector('.avatar');
+      if (avatar && role) avatar.title = `${role} · ${s.auth.network}`;
       if (s.version) $('rail-version') && ($('rail-version').textContent = 'v' + s.version);
       renderDiscoveredBadge();
       const key = JSON.stringify(s.selections || {});

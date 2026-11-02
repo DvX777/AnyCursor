@@ -69,10 +69,6 @@ function tokenFromRequest(req, url) {
   if (custom) return String(custom).trim();
   const cookies = readCookies(req);
   if (cookies[COOKIE]) return cookies[COOKIE];
-  if (url) {
-    const query = url.searchParams.get('token') || url.searchParams.get('access_token');
-    if (query) return query;
-  }
   return '';
 }
 
@@ -111,6 +107,45 @@ function clearCookie(req, options = {}) {
   const parts = [`${COOKIE}=`, 'Path=/', 'HttpOnly', 'SameSite=Strict', 'Max-Age=0'];
   if (secureRequest(req, options)) parts.push('Secure');
   return parts.join('; ');
+}
+
+const BUCKETS = new Map();
+
+function rateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  let bucket = BUCKETS.get(key);
+  if (!bucket || now - bucket.start >= windowMs) {
+    bucket = { start: now, count: 0 };
+    BUCKETS.set(key, bucket);
+  }
+  bucket.count += 1;
+  if (BUCKETS.size > 5000) {
+    for (const [bucketKey, value] of BUCKETS) {
+      if (now - value.start >= windowMs * 2) BUCKETS.delete(bucketKey);
+    }
+  }
+  return bucket.count <= limit;
+}
+
+function securityHeaders(req, res, options = {}) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "img-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline'",
+    "connect-src 'self'",
+    "font-src 'self' data:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '));
+  if (secureRequest(req, options)) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
 }
 
 function escapeHtml(value) {
@@ -168,5 +203,7 @@ module.exports = {
   safeEqual,
   authCookie,
   clearCookie,
+  rateLimit,
+  securityHeaders,
   loginPage,
 };

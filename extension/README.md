@@ -16,11 +16,11 @@ Cursor's own models and your BYOK models in the native model picker.
 >
 > Hosting the gateway on a VPS or another machine? Set `cursor.supervise` to
 > `false` and point `cursor.backendUrl` at the server; the extension checks it
-> instead of starting a local gateway.
+> instead of starting its own gateway.
 
 ## What it does
 
-- starts with Cursor and supervises the local gateway
+- starts with Cursor and supervises the gateway
 - starts the gateway when it is not running, and restarts it after a crash
 - runs the packaged gateway from `vendor/anycursor`, so no source checkout is
   required after installation

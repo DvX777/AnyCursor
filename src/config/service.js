@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { normalizeConfig } = require('./load');
 const { createSecretStore, targetName } = require('./secrets');
+const { Vault, ALGORITHM } = require('./vault');
 
 const PROVIDER_SECRETS = [
   ['apiKey', 'apiKeyRef'],
@@ -80,6 +81,14 @@ function extractSecrets(raw, store) {
 
 function redactRaw(raw, store) {
   const out = clone(raw || {});
+  if (out.gateway && typeof out.gateway === 'object') {
+    out.gateway.accessToken = '';
+    if (Array.isArray(out.gateway.grants)) {
+      out.gateway.grants = out.gateway.grants.map((grant) => (
+        grant && typeof grant === 'object' ? { ...grant, tokenHash: '' } : grant
+      ));
+    }
+  }
   for (const [name, provider] of Object.entries(out.providers || {})) {
     if (!provider || typeof provider !== 'object') continue;
     const storedKey = provider.apiKeyRef && store ? store.get(provider.apiKeyRef) : '';
@@ -105,6 +114,16 @@ function redactRaw(raw, store) {
 
 function mergeSecrets(next, previous) {
   const out = clone(next || {});
+  if (out.gateway && typeof out.gateway === 'object' && previous && previous.gateway) {
+    if (!out.gateway.accessToken && previous.gateway.accessToken) {
+      out.gateway.accessToken = previous.gateway.accessToken;
+    }
+    const nextGrants = out.gateway.grants;
+    const invalidGrants = !Array.isArray(nextGrants) || nextGrants.some((grant) => !grant || !grant.tokenHash);
+    if (invalidGrants && Array.isArray(previous.gateway.grants)) {
+      out.gateway.grants = clone(previous.gateway.grants);
+    }
+  }
   for (const [name, provider] of Object.entries(out.providers || {})) {
     if (!provider || typeof provider !== 'object') continue;
     const old = previous && previous.providers && previous.providers[name];
@@ -148,6 +167,9 @@ class ConfigService {
   constructor(file, options = {}) {
     this.file = file;
     this.secrets = options.secrets === undefined ? createSecretStore() : options.secrets;
+    this.vault = null;
+    this.encryption = { enabled: false, algorithm: ALGORITHM };
+    this.encryptionError = '';
     this.raw = null;
     this.config = null;
     this.warnings = [];
@@ -156,17 +178,46 @@ class ConfigService {
   }
 
   load() {
+    this.encryptionError = '';
     try {
       const text = fs.readFileSync(this.file, 'utf8').replace(/^\uFEFF/, '');
       const raw = JSON.parse(text);
-      const loaded = normalizeConfig(resolveSecrets(raw, this.secrets));
-      if (!this.secrets) {
-        loaded.warnings.unshift('Windows Credential Manager is unavailable; secrets remain in the config file');
+      this.vault = Vault.forConfig(this.file, raw);
+      let diskRaw = raw;
+      if (this.vault.enabled) {
+        try {
+          const encrypted = this.vault.encryptConfig(raw);
+          if (JSON.stringify(encrypted) !== JSON.stringify(raw)) {
+            const backup = `${this.file}.${Date.now()}.encryption.bak`;
+            fs.copyFileSync(this.file, backup);
+            const temp = `${this.file}.${process.pid}.enc.tmp`;
+            fs.writeFileSync(temp, JSON.stringify(encrypted, null, 2) + '\n');
+            fs.renameSync(temp, this.file);
+            diskRaw = encrypted;
+          }
+        } catch (error) {
+          this.encryptionError = String(error && error.message ? error.message : error);
+        }
       }
-      this.raw = raw;
+      const effectiveRaw = this.vault.enabled ? this.vault.decryptConfig(diskRaw) : diskRaw;
+      const loaded = normalizeConfig(resolveSecrets(effectiveRaw, this.secrets));
+      if (!this.secrets) {
+        loaded.warnings.unshift(this.vault.enabled
+          ? 'Windows Credential Manager is unavailable; secrets are encrypted at rest with the host key'
+          : 'Windows Credential Manager is unavailable; secrets remain in the config file');
+      }
+      if (this.encryptionError) {
+        loaded.warnings.unshift(`Secret encryption warning: ${this.encryptionError}`);
+      }
+      this.raw = diskRaw;
       this.config = loaded.config;
       this.warnings = loaded.warnings;
       this.error = '';
+      this.encryption = {
+        enabled: this.vault.enabled && !this.encryptionError,
+        algorithm: ALGORITHM,
+        keyPath: this.vault.enabled ? this.vault.keyPath : '',
+      };
       return loaded;
     } catch (error) {
       this.error = String(error && error.message ? error.message : error);
@@ -180,15 +231,18 @@ class ConfigService {
       config: redactRaw(this.raw || {}, this.secrets),
       warnings: this.warnings,
       error: this.error,
+      encryption: { enabled: this.encryption.enabled, algorithm: this.encryption.algorithm },
     };
   }
 
   save(nextRaw) {
     if (!nextRaw || typeof nextRaw !== 'object') throw new Error('config must be an object');
-    const merged = mergeSecrets(nextRaw, this.raw || {});
-    const persisted = extractSecrets(merged, this.secrets);
-    const effective = resolveSecrets(persisted, this.secrets);
-    const loaded = normalizeConfig(effective); // validate before writing
+    const previous = this.vault && this.vault.enabled ? this.vault.decryptConfig(this.raw || {}) : (this.raw || {});
+    const merged = mergeSecrets(nextRaw, previous);
+    let persisted = extractSecrets(merged, this.secrets);
+    if (this.vault && this.vault.enabled) persisted = this.vault.encryptConfig(persisted);
+    const effective = this.vault && this.vault.enabled ? this.vault.decryptConfig(persisted) : persisted;
+    const loaded = normalizeConfig(resolveSecrets(effective, this.secrets)); // validate before writing
     const backup = `${this.file}.${Date.now()}.bak`;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     if (fs.existsSync(this.file)) fs.copyFileSync(this.file, backup);
@@ -199,7 +253,19 @@ class ConfigService {
     this.config = loaded.config;
     this.warnings = loaded.warnings;
     this.error = '';
+    this.encryption = {
+      enabled: !!this.vault && this.vault.enabled,
+      algorithm: ALGORITHM,
+      keyPath: this.vault && this.vault.enabled ? this.vault.keyPath : '',
+    };
     return { config: this.config, warnings: this.warnings, backup };
+  }
+
+  mutate(mutator) {
+    if (typeof mutator !== 'function') throw new Error('mutator must be a function');
+    const previous = this.vault && this.vault.enabled ? this.vault.decryptConfig(this.raw || {}) : clone(this.raw || {});
+    mutator(previous);
+    return this.save(previous);
   }
 }
 

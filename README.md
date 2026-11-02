@@ -18,7 +18,7 @@ _Your keys. Your models. Cursor's native experience. No second app to open._
 </p>
 <p>
   <img alt="BYOK" src="https://img.shields.io/badge/BYOK-OpenAI%20%7C%20Anthropic%20%7C%20Google%20%7C%20Azure%20%7C%20Bedrock-blue?style=for-the-badge">
-  <img alt="Private" src="https://img.shields.io/badge/Privacy-100%25%20local-success?style=for-the-badge">
+  <img alt="Private" src="https://img.shields.io/badge/Privacy-Self--hosted-success?style=for-the-badge">
   <img alt="No launcher" src="https://img.shields.io/badge/Launcher-None-orange?style=for-the-badge">
 </p>
 
@@ -28,7 +28,7 @@ _Your keys. Your models. Cursor's native experience. No second app to open._
 
 ---
 
-AnyCursor is a local model gateway and Cursor extension that lets you run **your own API keys and models** through Cursor's normal Agent/Edit experience. Cursor keeps its native UI, tools, MCP servers, subagents, approvals and history. AnyCursor handles the model transport locally.
+AnyCursor is a model gateway and Cursor extension that lets you run **your own API keys and models** through Cursor's normal Agent/Edit experience. Cursor keeps its native UI, tools, MCP servers, subagents, approvals and history. The gateway handles the model transport.
 
 It is built for people who want their own models in Cursor without opening a second app, changing their workflow, or giving up native Cursor features.
 
@@ -49,8 +49,9 @@ It is built for people who want their own models in Cursor without opening a sec
 | Image attachments | Verified |
 | Subagents | Verified, including explore and approvals |
 | Effort / context / fast controls | Native model-picker metadata |
-| Secrets | Windows Credential Manager |
-| Runtime | Local-only gateway, configuration-driven |
+| Secrets | Windows Credential Manager or AES-256-GCM host vault |
+| Runtime | Gateway, local or remote, configuration-driven |
+| Access | Owner, admin, viewer, private and client scopes with ABAC |
 
 > **No launcher. No visible app. Open Cursor normally.** The gateway is pre-warmed at login and supervised by the Cursor extension.
 
@@ -180,7 +181,7 @@ The provider layer is configuration-driven. Nothing about URLs, ports, model nam
 └───────────────────────────────┘
 ```
 
-Cursor's own models are forwarded byte-for-byte to Cursor's backend. BYOK models are intercepted locally and sent to the configured provider.
+Cursor's own models are forwarded byte-for-byte to Cursor's backend. BYOK models are intercepted by the gateway and sent to the configured provider.
 
 With Cursor 3.x, Agent Host turns arrive as `InferenceService/RunInference` streams. AnyCursor answers `run_ready`, converts messages/tools, streams text and thinking deltas, returns tool calls, and ends each invocation. Native approvals and the agent loop remain Cursor's.
 
@@ -290,7 +291,7 @@ Cursor 3.x has two surfaces:
 | Agent Window (glass, default) | No — Cursor scans a fixed allowlist of its own extensions | Yes | No |
 | IDE window (`Cursor.exe --classic`) | Yes | Yes | Yes |
 
-Models work in both because Cursor calls the local gateway for `AvailableModels` and `RunInference` regardless of the window. The gateway is a normal background process, not an extension: the watchdog task starts it at login and restarts it within seconds if it exits. Nothing needs to be activated first.
+Models work in both because Cursor calls the gateway for `AvailableModels` and `RunInference` regardless of the window. The gateway is a normal background process, not an extension: the watchdog task starts it at login and restarts it within seconds if it exits. Nothing needs to be activated first.
 
 Open an IDE window when you want the status bar item, `AnyCursor: Doctor`, or the other commands. Shortcuts keep opening the Agent Window, and that is fine.
 
@@ -318,6 +319,7 @@ AnyCursor/
 |-- extension/       Cursor extension: supervision, settings, lifecycle
 |-- public/          Local dashboard and settings UI
 |-- deploy/          VPS, systemd, Docker and Caddy recipes
+|-- SECURITY.md      Threat model, roles and operator checklist
 |-- src/
 |   |-- gateway/     h1/h2c gateway, RunInference, live turns
 |   |-- providers/   OpenAI, Anthropic, Google, Azure, Bedrock
@@ -368,15 +370,26 @@ Invoke-RestMethod http://127.0.0.1:43110/health
 
 Then run **AnyCursor: Doctor** from the Cursor command palette.
 
+## Security
+
+- Provider keys, model keys and the owner token are encrypted at rest with AES-256-GCM using a host key outside the config file.
+- Access is attribute-based: role, token type, network zone, resource and action all participate, and public clients can never write configuration.
+- Delegated tokens are scoped (`admin`, `viewer`, `client`), stored only as SHA-256 hashes, optionally expiring and revocable from the dashboard.
+- Provider secrets are never returned by the API, including to admins; only the owner boundary can manage grants.
+- Login cookies are HttpOnly/SameSite, state-changing requests are origin-checked, login and writes are rate-limited, and decisions land in `logs/access.ndjson`.
+- A public bind without a token refuses to start; loopback, RFC1918 and Tailscale clients are trusted by default.
+
+See [SECURITY.md](SECURITY.md) for the threat model, role matrix and operator checklist.
+
 ## Principles
 
 - **Cursor stays Cursor.** Native models, tools, MCP, subagents, approvals and history remain native; native model availability follows your Cursor plan.
 - **No localhost lock-in.** Run the gateway on a VPS, homelab or Tailscale node; Cursor connects to any reachable address.
 - **AnyCursor has no limit.** Local, LAN, VPS, homelab or Tailscale — the same gateway, wherever it runs.
-- **Your keys stay yours.** BYOK traffic is routed locally, not through a separate hosted service.
+- **Your keys stay yours.** BYOK traffic goes through your own gateway, not a separate hosted service.
 - **Open Cursor normally.** No launcher and no visible companion app.
 - **Configuration over hardcoding.** Providers, endpoints, models and display names are data.
-- **Local by default.** Secrets live in Windows Credential Manager or environment variables.
+- **Yours by default.** Secrets live in Windows Credential Manager, environment variables or the encrypted host vault.
 
 ## License
 

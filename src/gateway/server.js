@@ -32,6 +32,7 @@ const usage = require('./usage');
 const discovered = require('./discovered');
 const modelsDev = require('../catalog/models-dev');
 const auth = require('./auth');
+const access = require('./access');
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -686,6 +687,27 @@ const BODY_DIR = path.join(LOG_DIR, 'bodies');
 fs.mkdirSync(LOG_DIR, { recursive: true });
 fs.mkdirSync(BODY_DIR, { recursive: true });
 const traffic = fs.createWriteStream(path.join(LOG_DIR, 'traffic.ndjson'), { flags: 'a' });
+const ACCESS_LOG = path.join(LOG_DIR, 'access.ndjson');
+
+function auditAccess(req, principal, action, resource, allowed, status, extra = {}) {
+  try {
+    let pathname = '';
+    try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (_) { /* ignore */ }
+    fs.appendFileSync(ACCESS_LOG, JSON.stringify({
+      ts: new Date().toISOString(),
+      ip: auth.clientAddress(req),
+      role: principal ? principal.role : 'anonymous',
+      via: principal ? principal.via : 'none',
+      network: principal ? principal.network : 'unknown',
+      action,
+      resource,
+      allowed,
+      status,
+      path: pathname,
+      ...extra,
+    }) + '\n');
+  } catch (_) { /* audit must never break a request */ }
+}
 
 // A local proxy must never die on a single bad request; log and keep serving.
 function fatal(kind, err) {
@@ -831,7 +853,7 @@ function searchCatalog(catalog, modelId) {
   return partial;
 }
 
-function statusPayload() {
+function statusPayload(principal = null) {
   const config = currentConfig();
   const authInfo = gatewayAuth();
   return {
@@ -842,6 +864,11 @@ function statusPayload() {
     configLoaded: !!config,
     configError: configService.error,
     warnings: configService.warnings,
+    auth: principal ? access.publicPrincipal(principal) : null,
+    encryption: {
+      enabled: !!(configService.encryption && configService.encryption.enabled),
+      algorithm: (configService.encryption && configService.encryption.algorithm) || '',
+    },
     gateway: {
       host: HOST,
       port: PORT,
@@ -948,6 +975,22 @@ function handleLocal(req, res) {
   const pathname = url.pathname;
   const headOnly = req.method === 'HEAD';
   const options = gatewayAuth();
+  const ip = auth.clientAddress(req);
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const headerToken = req.headers.authorization || req.headers['x-anycursor-token'];
+    const origin = req.headers.origin;
+    if (!headerToken && origin) {
+      let originHost = '';
+      try { originHost = new URL(origin).host; } catch (_) { /* invalid origin */ }
+      const expected = req.headers['x-forwarded-host'] || req.headers.host;
+      if (!originHost || !expected || originHost !== expected) {
+        auditAccess(req, null, 'write', 'origin', false, 403);
+        sendJson(res, 403, { ok: false, error: 'cross-origin request blocked' }, headOnly);
+        return true;
+      }
+    }
+  }
 
   if (pathname === '/login') {
     if (req.method === 'GET' || req.method === 'HEAD') {
@@ -961,6 +1004,17 @@ function handleLocal(req, res) {
       return true;
     }
     if (req.method === 'POST') {
+      if (!auth.rateLimit(`login:${ip}`, 8, 60 * 1000)) {
+        auditAccess(req, null, 'login', 'session', false, 429);
+        const body = Buffer.from(auth.loginPage('Too many attempts. Try again in a minute.'), 'utf8');
+        res.writeHead(429, {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'content-length': body.length,
+        });
+        res.end(body);
+        return true;
+      }
       readBodyText(req).then((text) => {
         let token = '';
         try {
@@ -970,14 +1024,21 @@ function handleLocal(req, res) {
             token = new URLSearchParams(text).get('token') || '';
           }
         } catch (_) { /* invalid body */ }
-        if (!options.token || auth.safeEqual(token, options.token)) {
+        const probe = {
+          headers: { ...req.headers, authorization: `Bearer ${token}` },
+          socket: req.socket,
+        };
+        const who = access.principal(probe, null, options, currentConfig());
+        if (who.role !== 'anonymous' && who.role !== 'client') {
+          auditAccess(req, who, 'login', 'session', true, 302);
           res.writeHead(302, {
-            'set-cookie': auth.authCookie(token || options.token, req, options),
+            'set-cookie': auth.authCookie(token, req, options),
             location: '/',
           });
           res.end();
           return;
         }
+        auditAccess(req, who, 'login', 'session', false, 401);
         const body = Buffer.from(auth.loginPage('Invalid access token.'), 'utf8');
         res.writeHead(401, {
           'content-type': 'text/html; charset=utf-8',
@@ -1012,7 +1073,9 @@ function handleLocal(req, res) {
     return true;
   }
 
-  if (!auth.authorized(req, url, options)) {
+  const principal = access.principal(req, url, options, currentConfig());
+  if (principal.role === 'anonymous') {
+    auditAccess(req, principal, 'read', 'session', false, 401);
     if (pathname.startsWith('/api/')) {
       sendJson(res, 401, { ok: false, error: 'unauthorized' }, headOnly);
     } else {
@@ -1027,23 +1090,130 @@ function handleLocal(req, res) {
     return true;
   }
 
+  const guard = (action, resource) => {
+    if (access.can(principal, action, resource)) return true;
+    auditAccess(req, principal, action, resource, false, 403);
+    if (pathname.startsWith('/api/')) {
+      sendJson(res, 403, {
+        ok: false,
+        error: 'forbidden',
+        role: principal.role,
+        action,
+        resource,
+      }, headOnly);
+    } else {
+      res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(`forbidden: ${principal.role} cannot ${action} ${resource}`);
+    }
+    return false;
+  };
+
+  const allowWrite = () => {
+    if (auth.rateLimit(`write:${ip}`, 30, 60 * 1000)) return true;
+    auditAccess(req, principal, 'write', 'rate-limit', false, 429);
+    sendJson(res, 429, { ok: false, error: 'too many write requests' }, headOnly);
+    return false;
+  };
+
+  if (pathname === '/api/access/grants') {
+    if (!guard('manage', 'grants')) return true;
+    const config = currentConfig();
+    const grants = (config && config.gateway && config.gateway.grants) || [];
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      sendJson(res, 200, { ok: true, grants: grants.map(access.sanitizeGrant) }, headOnly);
+      return true;
+    }
+
+    if (req.method === 'POST') {
+      if (!allowWrite()) return true;
+      readJsonBody(req).then((body) => {
+        try {
+          const role = String(body.role || 'viewer');
+          if (!['admin', 'viewer', 'client'].includes(role)) {
+            throw new Error('role must be admin, viewer or client');
+          }
+          const name = String(body.name || `${role} grant`).trim().slice(0, 60) || `${role} grant`;
+          const days = body.expiresInDays === undefined || body.expiresInDays === null || body.expiresInDays === ''
+            ? 0
+            : Number(body.expiresInDays);
+          if (!Number.isFinite(days) || days < 0 || days > 365) {
+            throw new Error('expiresInDays must be between 0 and 365');
+          }
+          const token = access.newToken();
+          const grant = {
+            id: nodeCrypto.randomUUID(),
+            name,
+            role,
+            tokenHash: access.hashToken(token),
+            createdAt: new Date().toISOString(),
+            expiresAt: days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : '',
+          };
+          configService.mutate((raw) => {
+            raw.gateway = raw.gateway || {};
+            raw.gateway.grants = [...(raw.gateway.grants || []), grant];
+          });
+          applyConfig();
+          auditAccess(req, principal, 'manage', 'grants', true, 201, { grantId: grant.id, grantRole: role });
+          sendJson(res, 201, { ok: true, grant: access.sanitizeGrant(grant), token });
+        } catch (error) {
+          auditAccess(req, principal, 'manage', 'grants', false, 400);
+          sendJson(res, 400, { ok: false, error: String(error && error.message ? error.message : error) });
+        }
+      }, (error) => sendJson(res, 400, { ok: false, error: String(error.message || error) }));
+      return true;
+    }
+
+    if (req.method === 'DELETE') {
+      if (!allowWrite()) return true;
+      const id = url.searchParams.get('id') || '';
+      if (!id) {
+        sendJson(res, 400, { ok: false, error: 'id is required' });
+        return true;
+      }
+      configService.mutate((raw) => {
+        raw.gateway = raw.gateway || {};
+        raw.gateway.grants = (raw.gateway.grants || []).filter((grant) => grant.id !== id);
+      });
+      applyConfig();
+      auditAccess(req, principal, 'manage', 'grants', true, 200, { revoked: id });
+      const remaining = (currentConfig().gateway.grants || []).length;
+      sendJson(res, 200, { ok: true, revoked: id, remaining });
+      return true;
+    }
+
+    res.writeHead(405, { allow: 'GET, HEAD, POST, DELETE', 'content-type': 'text/plain; charset=utf-8' });
+    res.end('method not allowed');
+    return true;
+  }
+
+
   if (pathname === '/api/config') {
     if (req.method === 'GET' || req.method === 'HEAD') {
-      sendJson(res, 200, configPayload(), headOnly);
+      if (!guard('read', 'config')) return true;
+      sendJson(res, 200, configPayload({ auth: access.publicPrincipal(principal) }), headOnly);
       return true;
     }
     if (req.method === 'POST') {
+      if (!guard('write', 'config')) return true;
+      if (!allowWrite()) return true;
       readJsonBody(req).then((body) => {
         const next = body && body.config ? body.config : body;
         try {
           const result = configService.save(next);
           applyConfig();
+          auditAccess(req, principal, 'write', 'config', true, 200);
           log({
             id: ++seq, ts: new Date().toISOString(), dir: 'config-save',
             path: CONFIG_PATH, models: configService.config.models.length, backup: result.backup,
           });
-          sendJson(res, 200, configPayload({ ok: true, backup: result.backup }));
+          sendJson(res, 200, configPayload({
+            ok: true,
+            backup: result.backup,
+            auth: access.publicPrincipal(principal),
+          }));
         } catch (error) {
+          auditAccess(req, principal, 'write', 'config', false, 400);
           sendJson(res, 400, { ok: false, error: String(error && error.message ? error.message : error) });
         }
       }, (error) => {
@@ -1057,6 +1227,8 @@ function handleLocal(req, res) {
   }
 
   if (pathname === '/api/lookup-model' && req.method === 'POST') {
+    if (!guard('write', 'config')) return true;
+    if (!allowWrite()) return true;
     readJsonBody(req).then(async (body) => {
       try {
         const found = await lookupModelMetadata(String(body.provider || ''), String(body.model || ''));
@@ -1069,6 +1241,8 @@ function handleLocal(req, res) {
   }
 
   if (pathname === '/api/config/reload' && req.method === 'POST') {
+    if (!guard('write', 'config')) return true;
+    if (!allowWrite()) return true;
     const loaded = configService.load();
     if (!loaded) {
       sendJson(res, 400, { ok: false, error: configService.error });
@@ -1083,6 +1257,7 @@ function handleLocal(req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') return false;
 
   if (pathname === '/api/models-dev/providers' && (req.method === 'GET' || req.method === 'HEAD')) {
+    if (!guard('read', 'config')) return true;
     (async () => {
       try {
         if (!modelsDevCache.data || Date.now() - modelsDevCache.at > 10 * 60 * 1000) {
@@ -1105,10 +1280,12 @@ function handleLocal(req, res) {
   }
 
   if (pathname === '/api/status') {
-    sendJson(res, currentConfig() ? 200 : 503, statusPayload(), headOnly);
+    if (!guard('read', 'status')) return true;
+    sendJson(res, currentConfig() ? 200 : 503, statusPayload(principal), headOnly);
     return true;
   }
   if (pathname === '/api/models') {
+    if (!guard('read', 'models')) return true;
     const config = currentConfig();
     sendJson(res, 200, { models: config ? config.models.map(redactModel) : [] }, headOnly);
     return true;
@@ -1118,6 +1295,7 @@ function handleLocal(req, res) {
     return true;
   }
   if (pathname === '/' || pathname === '/index.html') {
+    if (!guard('read', 'dashboard')) return true;
     let body;
     try {
       body = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'));
@@ -1139,12 +1317,15 @@ function handleLocal(req, res) {
 
 // ---------------- HTTP/1.1 handler ----------------
 const h1 = http.createServer((req, res) => {
+  auth.securityHeaders(req, res, gatewayAuth());
   if (handleLocal(req, res)) return;
   let url = null;
   try { url = new URL(req.url, `http://${HOST}:${PORT}`); } catch (_) { /* ignore */ }
-  if (!auth.authorized(req, url, gatewayAuth())) {
-    res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
-    res.end('unauthorized');
+  const principal = access.principal(req, url, gatewayAuth(), currentConfig());
+  if (!access.can(principal, 'run', 'inference')) {
+    auditAccess(req, principal, 'run', 'inference', false, 403);
+    res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+    res.end('forbidden');
     return;
   }
   const id = ++seq;
@@ -1408,10 +1589,16 @@ function routeAgentRun(stream, hdrs, id, reqPath) {
 }
 
 h2.on('stream', (stream, hdrs) => {
-  const authReq = { headers: hdrs, socket: stream.session && stream.session.socket };
-  if (!auth.authorized(authReq, null, gatewayAuth())) {
-    stream.respond({ ':status': 401, 'content-type': 'text/plain; charset=utf-8' });
-    stream.end('unauthorized');
+  const authReq = {
+    headers: hdrs,
+    socket: stream.session && stream.session.socket,
+    url: hdrs[':path'] || '/',
+  };
+  const principal = access.principal(authReq, null, gatewayAuth(), currentConfig());
+  if (!access.can(principal, 'run', 'inference')) {
+    auditAccess(authReq, principal, 'run', 'inference', false, 403);
+    stream.respond({ ':status': 403, 'content-type': 'text/plain; charset=utf-8' });
+    stream.end('forbidden');
     return;
   }
   const id = ++seq;

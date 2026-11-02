@@ -20,6 +20,7 @@ const GATEWAY_DEFAULTS = {
   accessToken: '',
   allowInsecureRemote: false,
   trustPrivateNetworks: true,
+  grants: [],
 };
 
 function isPlainObject(value) {
@@ -281,6 +282,32 @@ function normalizeConfig(raw, options = {}) {
   gateway.accessToken = String(gateway.accessToken || '').trim();
   gateway.allowInsecureRemote = gateway.allowInsecureRemote === true;
   gateway.trustPrivateNetworks = gateway.trustPrivateNetworks !== false;
+  gateway.grants = Array.isArray(gateway.grants)
+    ? gateway.grants.map((grant, index) => {
+        if (!isPlainObject(grant)) {
+          warnings.push(`config.gateway.grants[${index}] must be an object`);
+          return null;
+        }
+        const role = ['admin', 'viewer', 'client'].includes(grant.role) ? grant.role : '';
+        const tokenHash = String(grant.tokenHash || '').trim();
+        if (!role) {
+          warnings.push(`config.gateway.grants[${index}].role must be admin, viewer or client`);
+          return null;
+        }
+        if (!/^sha256:[a-f0-9]{64}$/.test(tokenHash)) {
+          warnings.push(`config.gateway.grants[${index}].tokenHash must be sha256:<64 hex>`);
+          return null;
+        }
+        return {
+          id: String(grant.id || `grant-${index + 1}`),
+          name: String(grant.name || `Grant ${index + 1}`),
+          role,
+          tokenHash,
+          createdAt: grant.createdAt ? String(grant.createdAt) : '',
+          expiresAt: grant.expiresAt ? String(grant.expiresAt) : '',
+        };
+      }).filter(Boolean)
+    : [];
 
   const providers = {};
   for (const [name, provider] of Object.entries(interpolated.providers)) {
