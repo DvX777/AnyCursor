@@ -13,6 +13,10 @@ Cursor's own models and your BYOK models in the native model picker.
 > extension activates in an IDE window (`Cursor.exe --classic`). Your models keep
 > working in the Agent Window anyway: the gateway and its watchdog run
 > independently, and only these commands are IDE-only.
+>
+> Hosting the gateway on a VPS or another machine? Set `cursor.supervise` to
+> `false` and point `cursor.backendUrl` at the server; the extension checks it
+> instead of starting a local gateway.
 
 ## What it does
 

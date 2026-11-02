@@ -31,6 +31,7 @@ const selections = require('./selections');
 const usage = require('./usage');
 const discovered = require('./discovered');
 const modelsDev = require('../catalog/models-dev');
+const auth = require('./auth');
 
 const argv = process.argv.slice(2);
 function arg(name, fallback) {
@@ -67,6 +68,17 @@ function applyConfig() {
 
 function currentConfig() {
   return configService.config;
+}
+
+function gatewayAuth() {
+  const config = currentConfig();
+  const gateway = (config && config.gateway) || {};
+  return {
+    token: String(process.env.ANY_CURSOR_ACCESS_TOKEN || gateway.accessToken || '').trim(),
+    trustPrivate: gateway.trustPrivateNetworks !== false,
+    publicUrl: gateway.publicUrl || '',
+    allowInsecureRemote: gateway.allowInsecureRemote === true,
+  };
 }
 
 function providerApiKey(provider) {
@@ -819,7 +831,9 @@ function searchCatalog(catalog, modelId) {
   return partial;
 }
 
-function statusPayload() {  const config = currentConfig();
+function statusPayload() {
+  const config = currentConfig();
+  const authInfo = gatewayAuth();
   return {
     ok: !!config,
     version: PKG.version,
@@ -833,6 +847,9 @@ function statusPayload() {  const config = currentConfig();
       port: PORT,
       upstream: DEFAULT_UPSTREAM,
       dataDir: DATA_DIR,
+      publicUrl: authInfo.publicUrl,
+      authRequired: !!authInfo.token,
+      trustPrivateNetworks: authInfo.trustPrivate,
     },
     routing: config ? config.routing : null,
     providers: config
@@ -859,8 +876,25 @@ function restartRequired(config) {
   };
 }
 
-function readJsonBody(req, limit = 2 * 1024 * 1024) {
+function readBodyText(req, limit = 64 * 1024) {
   return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(new Error('request body is too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+function readJsonBody(req, limit = 2 * 1024 * 1024) {  return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     req.on('data', (chunk) => {
@@ -887,22 +921,111 @@ function readJsonBody(req, limit = 2 * 1024 * 1024) {
 
 function configPayload(extra = {}) {
   const redacted = configService.redacted();
+  const authInfo = gatewayAuth();
   return {
     ...redacted,
     restartRequired: restartRequired(configService.config),
-    gateway: { host: HOST, port: PORT, upstream: DEFAULT_UPSTREAM, dataDir: DATA_DIR },
+    gateway: {
+      host: HOST,
+      port: PORT,
+      upstream: DEFAULT_UPSTREAM,
+      dataDir: DATA_DIR,
+      publicUrl: authInfo.publicUrl,
+      authRequired: !!authInfo.token,
+      trustPrivateNetworks: authInfo.trustPrivate,
+    },
     ...extra,
   };
 }
 
 function handleLocal(req, res) {
-  let pathname;
+  let url;
   try {
-    pathname = new URL(req.url, `http://${HOST}:${PORT}`).pathname;
+    url = new URL(req.url, `http://${HOST}:${PORT}`);
   } catch (_) {
     return false;
   }
+  const pathname = url.pathname;
   const headOnly = req.method === 'HEAD';
+  const options = gatewayAuth();
+
+  if (pathname === '/login') {
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      const body = Buffer.from(auth.loginPage(), 'utf8');
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-length': body.length,
+      });
+      if (!headOnly) res.end(body); else res.end();
+      return true;
+    }
+    if (req.method === 'POST') {
+      readBodyText(req).then((text) => {
+        let token = '';
+        try {
+          if (String(req.headers['content-type'] || '').includes('application/json')) {
+            token = String((JSON.parse(text) || {}).token || '');
+          } else {
+            token = new URLSearchParams(text).get('token') || '';
+          }
+        } catch (_) { /* invalid body */ }
+        if (!options.token || auth.safeEqual(token, options.token)) {
+          res.writeHead(302, {
+            'set-cookie': auth.authCookie(token || options.token, req, options),
+            location: '/',
+          });
+          res.end();
+          return;
+        }
+        const body = Buffer.from(auth.loginPage('Invalid access token.'), 'utf8');
+        res.writeHead(401, {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'content-length': body.length,
+        });
+        res.end(body);
+      }, () => {
+        res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end('bad request');
+      });
+      return true;
+    }
+    res.writeHead(405, { allow: 'GET, HEAD, POST' });
+    res.end('method not allowed');
+    return true;
+  }
+
+  if (pathname === '/logout') {
+    res.writeHead(302, { 'set-cookie': auth.clearCookie(req, options), location: '/login' });
+    res.end();
+    return true;
+  }
+
+  if (pathname === '/health') {
+    sendJson(res, currentConfig() ? 200 : 503, statusPayload(), headOnly);
+    return true;
+  }
+
+  if (pathname === '/favicon.ico') {
+    res.writeHead(204); res.end();
+    return true;
+  }
+
+  if (!auth.authorized(req, url, options)) {
+    if (pathname.startsWith('/api/')) {
+      sendJson(res, 401, { ok: false, error: 'unauthorized' }, headOnly);
+    } else {
+      const body = Buffer.from(auth.loginPage(), 'utf8');
+      res.writeHead(401, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-length': body.length,
+      });
+      if (!headOnly) res.end(body); else res.end();
+    }
+    return true;
+  }
 
   if (pathname === '/api/config') {
     if (req.method === 'GET' || req.method === 'HEAD') {
@@ -981,7 +1104,7 @@ function handleLocal(req, res) {
     return true;
   }
 
-  if (pathname === '/health' || pathname === '/api/status') {
+  if (pathname === '/api/status') {
     sendJson(res, currentConfig() ? 200 : 503, statusPayload(), headOnly);
     return true;
   }
@@ -1017,6 +1140,13 @@ function handleLocal(req, res) {
 // ---------------- HTTP/1.1 handler ----------------
 const h1 = http.createServer((req, res) => {
   if (handleLocal(req, res)) return;
+  let url = null;
+  try { url = new URL(req.url, `http://${HOST}:${PORT}`); } catch (_) { /* ignore */ }
+  if (!auth.authorized(req, url, gatewayAuth())) {
+    res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+    res.end('unauthorized');
+    return;
+  }
   const id = ++seq;
   const started = Date.now();
   const chunks = [];
@@ -1278,6 +1408,12 @@ function routeAgentRun(stream, hdrs, id, reqPath) {
 }
 
 h2.on('stream', (stream, hdrs) => {
+  const authReq = { headers: hdrs, socket: stream.session && stream.session.socket };
+  if (!auth.authorized(authReq, null, gatewayAuth())) {
+    stream.respond({ ':status': 401, 'content-type': 'text/plain; charset=utf-8' });
+    stream.end('unauthorized');
+    return;
+  }
   const id = ++seq;
   const reqPath = hdrs[':path'] || '/';
 
@@ -1325,6 +1461,13 @@ const server = net.createServer((socket) => {
 let started = false;
 function start() {
   if (started) return Promise.resolve({ host: HOST, port: PORT });
+  const options = gatewayAuth();
+  if (auth.isPublicBind(HOST) && !options.token && !options.allowInsecureRemote) {
+    return Promise.reject(new Error(
+      `refusing to listen on ${HOST} without authentication: set gateway.accessToken ` +
+      '(or ANY_CURSOR_ACCESS_TOKEN), or set gateway.allowInsecureRemote=true behind another network control',
+    ));
+  }
   started = true;
   return new Promise((resolve, reject) => {
     const onError = (error) => {
@@ -1334,7 +1477,15 @@ function start() {
     server.once('error', onError);
     server.listen(PORT, HOST, () => {
       server.removeListener('error', onError);
-      console.log(`[anycursor] listening on http://${HOST}:${PORT} (h1 + h2c)`);
+      const mode = options.token ? 'token' : (options.trustPrivate ? 'private-networks' : 'open');
+      console.log(`[anycursor] listening on http://${HOST}:${PORT} (h1 + h2c, auth=${mode})`);
+      if (options.allowInsecureRemote && !options.token) {
+        console.warn('[anycursor] remote bind without a token: put this behind a firewall, VPN or authenticating proxy');
+      }
+      if (auth.isPublicBind(HOST) && !/^https:\/\//i.test(options.publicUrl)) {
+        console.warn('[anycursor] public bind without an https publicUrl: terminate TLS in front of the gateway');
+      }
+      if (options.publicUrl) console.log(`[anycursor] public url: ${options.publicUrl}`);
       console.log(`[anycursor] default upstream: ${DEFAULT_UPSTREAM}`);
       console.log(`[anycursor] config: ${CONFIG_PATH}${configService.config ? '' : ' (not loaded)'}`);
       console.log(`[anycursor] logs: ${LOG_DIR}`);

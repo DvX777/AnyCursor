@@ -16,6 +16,10 @@ const GATEWAY_DEFAULTS = {
   host: '127.0.0.1',
   port: 43110,
   logLevel: 'info',
+  publicUrl: '',
+  accessToken: '',
+  allowInsecureRemote: false,
+  trustPrivateNetworks: true,
 };
 
 function isPlainObject(value) {
@@ -270,6 +274,13 @@ function normalizeConfig(raw, options = {}) {
   }
   gateway.port = port;
   gateway.dataDir = gateway.dataDir || defaultDataDir(env);
+  gateway.publicUrl = String(gateway.publicUrl || '').trim().replace(/\/+$/, '');
+  if (gateway.publicUrl && !/^https?:\/\//i.test(gateway.publicUrl)) {
+    throw new Error('config.gateway.publicUrl must start with http:// or https://');
+  }
+  gateway.accessToken = String(gateway.accessToken || '').trim();
+  gateway.allowInsecureRemote = gateway.allowInsecureRemote === true;
+  gateway.trustPrivateNetworks = gateway.trustPrivateNetworks !== false;
 
   const providers = {};
   for (const [name, provider] of Object.entries(interpolated.providers)) {
@@ -298,9 +309,14 @@ function normalizeConfig(raw, options = {}) {
     restartPolicy: 'ask',
     patchShortcuts: true,
     modelIdPrefix: cursorPrefix,
+    supervise: true,
     ...cursorSettings,
   };
-  cursor.backendUrl = cursor.backendUrl || `http://${gateway.host}:${gateway.port}`;
+  const wildcardHost = gateway.host === '0.0.0.0' || gateway.host === '::' || gateway.host === '[::]';
+  const localBackend = `http://127.0.0.1:${gateway.port}`;
+  cursor.backendUrl = cursor.backendUrl
+    || gateway.publicUrl
+    || (wildcardHost ? localBackend : `http://${gateway.host}:${gateway.port}`);
 
   const routing = {
     nativePassthrough: true,

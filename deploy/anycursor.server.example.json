@@ -1,0 +1,68 @@
+{
+  "$schema": "../schema/anycursor.schema.json",
+  "gateway": {
+    "host": "127.0.0.1",
+    "port": 43110,
+    "publicUrl": "https://anycursor.example.com",
+    "accessToken": "${ANY_CURSOR_ACCESS_TOKEN}",
+    "trustPrivateNetworks": true,
+    "dataDir": "/var/lib/anycursor",
+    "logLevel": "info"
+  },
+  "cursor": {
+    "backendUrl": "http://100.101.102.103:43110",
+    "supervise": false,
+    "patchShortcuts": false,
+    "modelIdPrefix": "claude-anycursor"
+  },
+  "routing": {
+    "nativePassthrough": true,
+    "onUnknownModel": "native"
+  },
+  "providers": {
+    "opencode": {
+      "type": "openai-compatible",
+      "baseUrl": "https://opencode.ai/inference/go/v1",
+      "apiKey": "${OPENCODE_API_KEY}",
+      "endpoint": "/chat/completions",
+      "modelsDevProvider": "opencode-go",
+      "credential": "opencode-go"
+    },
+    "anthropic": {
+      "type": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "apiKey": "${ANTHROPIC_API_KEY}",
+      "version": "2023-06-01"
+    }
+  },
+  "models": [
+    {
+      "id": "deepseek-v4.1-flash",
+      "displayName": "DeepSeek V4.1 Flash",
+      "shortName": "DeepSeek V4.1",
+      "providerLabel": "OpenCode Go",
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash",
+      "vendor": "DEEPSEEK",
+      "contextWindow": 200000,
+      "maxOutput": 8192,
+      "effort": {
+        "tiers": [
+          { "id": "low", "label": "Low", "value": "low" },
+          { "id": "high", "label": "High", "value": "high" },
+          { "id": "max", "label": "Max", "value": "max" }
+        ],
+        "default": "high",
+        "requestField": "reasoning_effort"
+      },
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "reasoning": true,
+        "streaming": true,
+        "cache": true
+      },
+      "enabled": true
+    }
+  ]
+}

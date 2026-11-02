@@ -1,0 +1,19 @@
+# AnyCursor dashboard, TLS and basic auth in front of the local gateway.
+#
+#   sudo caddy hash-password --plaintext 'choose-a-long-password'
+#
+# Replace the domain and the hash below. The gateway itself stays on
+# 127.0.0.1:43110; only Caddy listens publicly.
+#
+# Cursor cannot send HTTP Basic credentials. Point Cursor at Tailscale or an
+# SSH tunnel instead; this public host is for the dashboard.
+
+anycursor.example.com {
+	encode zstd gzip
+
+	basic_auth {
+		admin $2a$14$REPLACE_WITH_CADDY_HASH
+	}
+
+	reverse_proxy 127.0.0.1:43110
+}

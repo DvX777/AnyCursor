@@ -3,6 +3,10 @@
   "gateway": {
     "host": "127.0.0.1",
     "port": 43110,
+    "publicUrl": "",
+    "accessToken": "",
+    "allowInsecureRemote": false,
+    "trustPrivateNetworks": true,
     "logLevel": "info",
     "dataDir": "${LOCALAPPDATA}/AnyCursor"
   },
@@ -10,6 +14,7 @@
     "backendUrl": "http://127.0.0.1:43110",
     "restartPolicy": "ask",
     "patchShortcuts": true,
+    "supervise": true,
     "modelIdPrefix": "claude-anycursor"
   },
   "routing": {

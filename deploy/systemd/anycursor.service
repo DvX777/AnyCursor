@@ -1,0 +1,23 @@
+[Unit]
+Description=AnyCursor gateway
+Documentation=https://github.com/DvX777/AnyCursor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=anycursor
+Group=anycursor
+WorkingDirectory=/opt/anycursor
+EnvironmentFile=-/etc/anycursor/anycursor.env
+ExecStart=/usr/bin/node src/gateway/index.js --config /etc/anycursor/config.json
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/anycursor /var/lib/anycursor
+
+[Install]
+WantedBy=multi-user.target

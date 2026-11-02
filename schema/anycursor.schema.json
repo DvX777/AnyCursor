@@ -39,6 +39,24 @@
           "maximum": 65535,
           "default": 43110
         },
+        "publicUrl": {
+          "type": "string",
+          "description": "Externally reachable base URL, for example https://anycursor.example.com. Used for Cursor routing and the dashboard."
+        },
+        "accessToken": {
+          "type": "string",
+          "description": "Bearer token required for dashboard, API and non-private clients. Use ${ENV_VAR} on servers."
+        },
+        "allowInsecureRemote": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow a public bind without an accessToken. Only behind another network control."
+        },
+        "trustPrivateNetworks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Treat loopback, RFC1918, Tailscale and ULA addresses as trusted without a token."
+        },
         "upstream": {
           "type": "string"
         },
@@ -53,6 +71,11 @@
       "properties": {
         "backendUrl": {
           "type": "string"
+        },
+        "supervise": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start and supervise a local gateway. Set false when Cursor points at a remote gateway."
         },
         "modelIdPrefix": {
           "type": "string",

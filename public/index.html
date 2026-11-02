@@ -1226,7 +1226,7 @@
         <div class="flow">
           <div class="node"><div class="k">Editor</div><div class="v">Cursor</div></div>
           <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-          <div class="node hot"><div class="k">Local gateway</div><div class="v mono">${esc((s.gateway && `${s.gateway.host}:${s.gateway.port}`) || 'not running')}</div></div>
+          <div class="node hot"><div class="k">Gateway</div><div class="v mono">${esc((s.gateway && (s.gateway.publicUrl || `${s.gateway.host}:${s.gateway.port}`)) || 'not running')}</div></div>
           <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
           <div class="node"><div class="k">Provider</div><div class="v">${esc(primary || 'none')}</div></div>
         </div>
@@ -1974,7 +1974,7 @@
     const s = STATUS;
     if (!s || !s.gateway) return;
     try {
-      await navigator.clipboard.writeText(`http://${s.gateway.host}:${s.gateway.port}/`);
+      await navigator.clipboard.writeText(`${s.gateway.publicUrl || `http://${s.gateway.host}:${s.gateway.port}`}/`);
       btn.style.color = 'var(--green)';
       setTimeout(() => { btn.style.color = ''; }, 1200);
     } catch (_) { toast('Clipboard is blocked by the browser.', 'bad'); }

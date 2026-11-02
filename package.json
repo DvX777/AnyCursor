@@ -1,6 +1,6 @@
 {
   "name": "anycursor",
-  "version": "0.3.9",
+  "version": "0.4.0",
   "private": true,
   "description": "Open-source model gateway and Cursor extension for BYOK models.",
   "license": "MIT",

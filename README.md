@@ -113,6 +113,34 @@ If you do configure a Cursor key or override URL, Cursor can refuse first-party 
 
 Manual routing, only if you skip shortcut patching: launch Cursor with `--test-backend-url http://127.0.0.1:43110`, or run **AnyCursor: Repair Cursor Shortcuts**. Nothing else needs to change in Cursor.
 
+## Run It Anywhere
+
+**AnyCursor has no limit.** Local, LAN, VPS, homelab or Tailscale — it is the same gateway, wherever it runs.
+
+AnyCursor is not tied to `127.0.0.1`. The gateway can run on a VPS, a dedicated server, a homelab box or a Tailscale node, and Cursor can point at it from another machine.
+
+```json
+{
+  "gateway": {
+    "host": "127.0.0.1",
+    "port": 43110,
+    "publicUrl": "https://anycursor.example.com",
+    "accessToken": "${ANY_CURSOR_ACCESS_TOKEN}"
+  },
+  "cursor": {
+    "backendUrl": "https://anycursor.example.com",
+    "supervise": false
+  }
+}
+```
+
+- `host` controls the bind address. Loopback, RFC1918 and Tailscale/CGNAT clients are trusted by default.
+- `publicUrl` is the address clients actually use; it becomes the default `cursor.backendUrl`.
+- `accessToken` protects the dashboard and API when a public client connects. A public bind without a token refuses to start.
+- `supervise: false` stops the local extension from starting a second gateway on the client machine.
+
+The supported remote path for Cursor is a private network — **Tailscale** or an **SSH tunnel** — because Cursor cannot send the dashboard token. A public domain is fine for the dashboard behind Caddy basic auth. Full steps, systemd, Docker, Caddy and a security checklist live in [deploy/README.md](deploy/README.md).
+
 ## Supported Providers
 
 | Provider | Type | Transport |
@@ -289,6 +317,7 @@ AnyCursor/
 |-- assets/          logo artwork
 |-- extension/       Cursor extension: supervision, settings, lifecycle
 |-- public/          Local dashboard and settings UI
+|-- deploy/          VPS, systemd, Docker and Caddy recipes
 |-- src/
 |   |-- gateway/     h1/h2c gateway, RunInference, live turns
 |   |-- providers/   OpenAI, Anthropic, Google, Azure, Bedrock
@@ -342,6 +371,8 @@ Then run **AnyCursor: Doctor** from the Cursor command palette.
 ## Principles
 
 - **Cursor stays Cursor.** Native models, tools, MCP, subagents, approvals and history remain native; native model availability follows your Cursor plan.
+- **No localhost lock-in.** Run the gateway on a VPS, homelab or Tailscale node; Cursor connects to any reachable address.
+- **AnyCursor has no limit.** Local, LAN, VPS, homelab or Tailscale — the same gateway, wherever it runs.
 - **Your keys stay yours.** BYOK traffic is routed locally, not through a separate hosted service.
 - **Open Cursor normally.** No launcher and no visible companion app.
 - **Configuration over hardcoding.** Providers, endpoints, models and display names are data.

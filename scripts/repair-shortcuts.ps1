@@ -108,7 +108,7 @@ foreach ($dir in $roots) {
 if ($changed.Count -eq 0) {
   Write-Host "No Cursor shortcuts needed changes." -ForegroundColor Yellow
 } else {
-  $action = if ($Undo) { "restored" } else { "pointed at http://127.0.0.1:$Port" }
+  $action = if ($Undo) { "restored" } else { "pointed at $BackendUrl" }
   Write-Host "Updated $($changed.Count) shortcut(s), ${action}:" -ForegroundColor Green
   $changed | ForEach-Object { Write-Host "  $_" }
   Write-Host "Backups: $env:LOCALAPPDATA\AnyCursor\backups\shortcuts"

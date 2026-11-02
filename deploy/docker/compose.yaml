@@ -1,0 +1,17 @@
+services:
+  anycursor:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: anycursor:local
+    container_name: anycursor
+    restart: unless-stopped
+    # Linux only: the gateway stays on the host loopback, reachable by Caddy,
+    # Tailscale or an SSH tunnel on the same machine.
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    security_opt:
+      - no-new-privileges:true
