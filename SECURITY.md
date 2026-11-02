@@ -127,7 +127,7 @@ supervised by a per-user task. Cursor updates replace Cursor's own files; they
 cannot corrupt AnyCursor code, and AnyCursor never writes into
 `resources/app`.
 
-**Shortcut guard.** A per-user task runs at logon and every minute. It:
+**Shortcut guard.** The hidden Gateway Watchdog checks every minute. It:
 
 1. re-applies the flag when Cursor's version changes or a shortcut loses it;
 2. inspects the command line of the running main `Cursor.exe` process;

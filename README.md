@@ -84,7 +84,7 @@ The installer:
 4. registers the **AnyCursor Gateway Watchdog**, a per-user task that supervises the gateway (restarts it within seconds)
 5. registers a login pre-warm task, or falls back to a hidden Startup entry
 6. patches Cursor shortcuts with the local backend flag
-7. registers the **AnyCursor Shortcut Guard**, which repairs shortcuts and detects a Cursor process that bypassed the gateway
+7. the hidden watchdog also repairs shortcuts and detects a Cursor process that bypassed the gateway
 8. waits for the gateway health endpoint
 
 Admin variant, one UAC prompt:
@@ -308,7 +308,7 @@ This is Cursor's own internal switch for pointing the desktop app at another bac
 Cursor updates itself several times a week. AnyCursor is built so an update cannot quietly break it:
 
 - **No client patching.** AnyCursor never edits `Cursor.exe`, `app.asar`, Electron bundles or the installed extension. It starts Cursor with `--test-backend-url` on a normal shortcut and runs the gateway as a separate background service. An update replaces Cursor's own files, not the shortcut flag or the gateway.
-- **Shortcut guard.** The installer registers **AnyCursor Shortcut Guard**, a per-user task that runs at logon and every minute. It repairs Desktop, Start Menu and taskbar shortcuts when Cursor's version changes or a shortcut loses the flag. It also checks the running `Cursor.exe` command line: if Cursor was launched without the flag it repairs the shortcuts, shows a Windows notification, writes an alert, and the dashboard shows a warning asking you to restart Cursor. A running process cannot pick up a new launch flag.
+- **Shortcut guard.** The hidden **AnyCursor Gateway Watchdog** checks every minute. It repairs Desktop, Start Menu and taskbar shortcuts when Cursor's version changes or a shortcut loses the flag. It also checks the running `Cursor.exe` command line: if Cursor was launched without the flag it repairs the shortcuts, shows a Windows notification, writes an alert, and the dashboard shows a warning asking you to restart Cursor. A running process cannot pick up a new launch flag. The check runs inside the watchdog's windowless executable, so no console window appears.
 - **One assumption.** `--test-backend-url` is Cursor's internal switch. If a future Cursor release removes it, AnyCursor cannot force routing from inside the client; the fix has to be a new transport path. Shortcut repair fails visibly rather than pretending to work.
 
 Telemetry is blocked at the gateway by default:

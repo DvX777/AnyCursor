@@ -43,6 +43,8 @@ class AnyCursorLauncher
         @"C:\Program Files (x86)\nodejs\node.exe"
     };
 
+    static volatile bool guardBusy = false;
+
     static string DataDir()
     {
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AnyCursor");
@@ -146,18 +148,115 @@ class AnyCursorLauncher
         }
     }
 
+    // Runs the shortcut guard from the hidden winexe supervisor. PowerShell is
+    // started with CreateNoWindow so no console window flashes every minute;
+    // the guard itself stays in %LOCALAPPDATA%\AnyCursor\bin.
+    static void RunGuard(string config)
+    {
+        try
+        {
+            string guard = Path.Combine(DataDir(), "bin", "shortcut-guard.ps1");
+            if (!File.Exists(guard)) return;
+
+            ProcessStartInfo info = new ProcessStartInfo();
+            info.FileName = "powershell.exe";
+            info.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + guard + "\" -Config \"" + config + "\" -Quiet";
+            info.UseShellExecute = false;
+            info.CreateNoWindow = true;
+            info.WindowStyle = ProcessWindowStyle.Hidden;
+            Process child = Process.Start(info);
+            if (child != null)
+            {
+                if (!child.WaitForExit(30000))
+                {
+                    try { child.Kill(); } catch { }
+                }
+            }
+        }
+        catch (Exception error)
+        {
+            Log("guard failed: " + error.Message);
+        }
+    }
+
+    static void GuardTick(string config)
+    {
+        if (guardBusy) return;
+        guardBusy = true;
+        Thread thread = new Thread(delegate()
+        {
+            try { RunGuard(config); }
+            finally { guardBusy = false; }
+        });
+        thread.IsBackground = true;
+        thread.Start();
+    }
+
     // Keeps the gateway alive for windows that never load third-party extensions
     // (Cursor's Agent Window). The extension is an optional extra supervisor.
     static void Supervise(string config, string host, int port)
     {
         Log("supervisor started");
+        bool patchShortcuts = true;
+        try
+        {
+            if (File.Exists(config))
+            {
+                string text = File.ReadAllText(config);
+                if (Regex.IsMatch(text, "\"patchShortcuts\"\\s*:\\s*false")) patchShortcuts = false;
+            }
+        }
+        catch { }
+
+        DateTime nextGuard = DateTime.MinValue;
+        Process child = null;
+        DateTime childStarted = DateTime.MinValue;
+
         while (true)
         {
+            if (patchShortcuts && DateTime.UtcNow >= nextGuard)
+            {
+                GuardTick(config);
+                nextGuard = DateTime.UtcNow.AddSeconds(60);
+            }
+
             if (Healthy(host, port))
             {
+                // The gateway may have been started by the login task, the
+                // extension or a previous supervisor. Health is the truth.
+                child = null;
                 Thread.Sleep(2000);
                 continue;
             }
+
+            if (child != null)
+            {
+                if (!child.HasExited)
+                {
+                    // Give a fresh gateway time to bind, but never block the
+                    // guard loop. Kill a process that stays unhealthy.
+                    if ((DateTime.UtcNow - childStarted).TotalSeconds > 60)
+                    {
+                        Log("gateway did not become healthy; restarting it");
+                        try { child.Kill(); } catch { }
+                        try { child.WaitForExit(5000); } catch { }
+                        child = null;
+                    }
+                    else
+                    {
+                        Thread.Sleep(2000);
+                        continue;
+                    }
+                }
+                else
+                {
+                    Log("gateway exited; checking again shortly");
+                    child = null;
+                    Thread.Sleep(5000);
+                }
+            }
+
+            if (child != null) continue;
 
             string gateway = GatewayPath();
             if (gateway == null)
@@ -167,18 +266,14 @@ class AnyCursorLauncher
                 continue;
             }
 
-            Process child = StartGateway(gateway, NodePath(), config);
+            child = StartGateway(gateway, NodePath(), config);
+            childStarted = DateTime.UtcNow;
             if (child == null)
             {
                 Thread.Sleep(15000);
                 continue;
             }
-
-            // Hold this supervisor on the child. If it exits (crash, upgrade,
-            // port conflict) the health probe runs again and starts a new one.
-            try { child.WaitForExit(); } catch { }
-            Log("gateway exited; checking again shortly");
-            Thread.Sleep(5000);
+            Thread.Sleep(1000);
         }
     }
 

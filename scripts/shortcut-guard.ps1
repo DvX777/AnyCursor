@@ -87,10 +87,12 @@ if (-not $exe) {
 
 $version = (Get-Item $exe).VersionInfo.ProductVersion
 $backendUrl = ""
+$patchShortcuts = $true
 if ($Config -and (Test-Path $Config)) {
   try {
     $json = Get-Content $Config -Raw | ConvertFrom-Json
     if ($json.cursor -and $json.cursor.backendUrl) { $backendUrl = [string]$json.cursor.backendUrl }
+    if ($json.cursor -and $json.cursor.patchShortcuts -eq $false) { $patchShortcuts = $false }
     if (-not $backendUrl -and $json.gateway) {
       $hostName = if ($json.gateway.host) { [string]$json.gateway.host } else { '127.0.0.1' }
       $port = if ($json.gateway.port) { [int]$json.gateway.port } else { 43110 }
@@ -101,6 +103,7 @@ if ($Config -and (Test-Path $Config)) {
     exit 1
   }
 }
+if (-not $patchShortcuts) { exit 0 }
 if ([string]::IsNullOrWhiteSpace($backendUrl)) { $backendUrl = "http://127.0.0.1:43110" }
 
 # Accept both "--test-backend-url URL" and "--test-backend-url=URL", with or

@@ -241,8 +241,7 @@ function Install-Watchdog {
   }
 }
 
-function Install-ShortcutGuard {
-  param([string]$ConfigFile)
+function Install-GuardScripts {
   $bin = Join-Path $env:LOCALAPPDATA 'AnyCursor\bin'
   New-Item -ItemType Directory -Force -Path $bin | Out-Null
   foreach ($file in @('shortcut-guard.ps1', 'repair-shortcuts.ps1')) {
@@ -251,29 +250,17 @@ function Install-ShortcutGuard {
     Copy-Item $source (Join-Path $bin $file) -Force
   }
 
-  $name = 'AnyCursor Shortcut Guard'
-  $guard = Join-Path $bin 'shortcut-guard.ps1'
-  try {
-    Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
-    $argument = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$guard`" -Config `"$ConfigFile`" -Quiet"
-    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argument
-    $triggerUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    $triggers = @(
-      (New-ScheduledTaskTrigger -AtLogOn -User $triggerUser),
-      (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-        -RepetitionInterval (New-TimeSpan -Minutes 1))
-    )
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-      -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -StartWhenAvailable
-    Register-ScheduledTask -TaskName $name -Action $action -Trigger $triggers -Settings $settings -Force `
-      -Description 'Keeps Cursor shortcuts pointed at AnyCursor across Cursor updates.' | Out-Null
-    Start-ScheduledTask -TaskName $name
-    Write-Host "Registered '$name' (re-checks shortcuts after Cursor updates)." -ForegroundColor Green
-    return $true
-  } catch {
-    Write-Warning "Shortcut guard registration failed ($($_.Exception.Message))."
-    return $false
+  # 0.5.3 registered a per-minute powershell.exe task. Windows creates a
+  # console window for that process before -WindowStyle Hidden applies, so it
+  # flashes. Remove it; the hidden watchdog runs the same guard with
+  # CreateNoWindow.
+  $old = 'AnyCursor Shortcut Guard'
+  if (Get-ScheduledTask -TaskName $old -ErrorAction SilentlyContinue) {
+    Stop-ScheduledTask -TaskName $old -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $old -Confirm:$false -ErrorAction SilentlyContinue
+    Write-Host "Removed the old shortcut guard task." -ForegroundColor Green
   }
+  Write-Host "Installed the shortcut guard for the hidden watchdog." -ForegroundColor Green
 }
 
 function Register-TaskElevated {
@@ -361,13 +348,10 @@ if (-not $SkipShortcuts) {
   $json = Get-Content $Config -Raw | ConvertFrom-Json
   if (-not $json.cursor -or $json.cursor.patchShortcuts -ne $false) {
     & (Join-Path $PSScriptRoot "repair-shortcuts.ps1") -Port $Port -Config $Config
-    Install-ShortcutGuard -ConfigFile $Config | Out-Null
   } else {
-    $name = 'AnyCursor Shortcut Guard'
-    Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
-    Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
-    Write-Host "Shortcut patching is disabled in $Config; removed the shortcut guard task." -ForegroundColor Yellow
+    Write-Host "Shortcut patching is disabled in $Config." -ForegroundColor Yellow
   }
+  Install-GuardScripts
 }
 
 if ($Port -le 0) {
