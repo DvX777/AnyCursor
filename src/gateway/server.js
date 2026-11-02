@@ -153,6 +153,7 @@ const DATA_DIR = process.env.ANY_CURSOR_DATA_DIR
 const MAX_CAPTURE = 8 * 1024 * 1024;
 const SAVE_BODIES = argv.includes('--save-bodies') || process.env.CURSOR_PROXY_SAVE_BODIES === '1';
 const adapter = require('./adapter');
+const privacy = require('./privacy');
 
 adapter.configure({
   sessionsDir: path.join(DATA_DIR, 'sessions'),
@@ -853,6 +854,25 @@ function searchCatalog(catalog, modelId) {
   return partial;
 }
 
+function clientAlert() {
+  try {
+    const file = path.join(DATA_DIR, 'state', 'client-alert.json');
+    if (!fs.existsSync(file)) return null;
+    const alert = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    const age = Date.now() - Date.parse(alert.detectedAt || '');
+    if (!Number.isFinite(age) || age > 24 * 60 * 60 * 1000) return null;
+    return {
+      kind: String(alert.kind || 'client-alert'),
+      pid: Number(alert.pid) || 0,
+      cursorVersion: String(alert.cursorVersion || ''),
+      detectedAt: String(alert.detectedAt || ''),
+      message: String(alert.message || ''),
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 function statusPayload(principal = null) {
   const config = currentConfig();
   const authInfo = gatewayAuth();
@@ -890,6 +910,8 @@ function statusPayload(principal = null) {
     selections: selections.snapshot(),
     usage: usage.snapshot(),
     discovered: discovered.snapshot(),
+    privacy: privacy.snapshot(config),
+    clientAlert: clientAlert(),
   };
 }
 
@@ -1330,6 +1352,27 @@ const h1 = http.createServer((req, res) => {
   }
   const id = ++seq;
   const started = Date.now();
+
+  const telemetryKind = privacy.classify(url ? url.pathname : req.url);
+  if (privacy.enabled(currentConfig()) && telemetryKind) {
+    const blockedPath = url ? url.pathname : req.url;
+    privacy.record(blockedPath);
+    log({
+      id, ts: new Date().toISOString(), dir: 'telemetry-blocked', protocol: 'h1',
+      kind: telemetryKind, path: blockedPath,
+      bytes: Number(req.headers['content-length'] || 0),
+    });
+    req.resume();
+    res.writeHead(200, {
+      'content-type': blockedPath.startsWith('/v1/') ? 'application/x-protobuf' : 'application/proto',
+      'content-length': '0',
+      'cache-control': 'no-store',
+      'x-anycursor-telemetry': 'blocked',
+    });
+    res.end();
+    return;
+  }
+
   const chunks = [];
   let size = 0;
 
@@ -1603,6 +1646,28 @@ h2.on('stream', (stream, hdrs) => {
   }
   const id = ++seq;
   const reqPath = hdrs[':path'] || '/';
+
+  const telemetryKind = privacy.classify(reqPath);
+  if (privacy.enabled(currentConfig()) && telemetryKind) {
+    privacy.record(reqPath);
+    log({
+      id, ts: new Date().toISOString(), dir: 'telemetry-blocked', protocol: 'h2',
+      kind: telemetryKind, path: reqPath,
+      bytes: Number(hdrs['content-length'] || 0),
+    });
+    try {
+      stream.respond({
+        ':status': 200,
+        'content-type': reqPath.startsWith('/v1/') ? 'application/x-protobuf' : 'application/proto',
+        'content-length': '0',
+        'cache-control': 'no-store',
+        'x-anycursor-telemetry': 'blocked',
+      }, { endStream: true });
+    } catch (_) { /* stream may already be closed */ }
+    stream.on('error', () => {});
+    stream.resume();
+    return;
+  }
 
   if (reqPath === '/aiserver.v1.InferenceService/RunInference' && registry) {
     inference.handleRunInference(stream, hdrs, id, reqPath, {

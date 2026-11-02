@@ -133,6 +133,17 @@
         }
       }
     },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blockTelemetry": {
+          "type": "boolean",
+          "default": true,
+          "description": "Refuse to forward Cursor analytics, metrics, traces and log uploads. Inference, catalog, auth and dashboard calls are never blocked. Blocked requests receive an empty success response and are logged by path only."
+        }
+      }
+    },
     "providers": {
       "type": "object",
       "minProperties": 1,

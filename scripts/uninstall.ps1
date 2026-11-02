@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 
-$taskNames = @($TaskName, 'AnyCursor Gateway Watchdog')
+$taskNames = @($TaskName, 'AnyCursor Gateway Watchdog', 'AnyCursor Shortcut Guard')
 foreach ($name in $taskNames) {
   $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
   if ($task) {
@@ -36,6 +36,20 @@ foreach ($entry in $startupEntries) {
   if (Test-Path $entry) {
     Remove-Item $entry -Force
     Write-Host "Removed startup entry '$entry'." -ForegroundColor Green
+  }
+}
+
+$binDir = Join-Path $env:LOCALAPPDATA 'AnyCursor\bin'
+if (Test-Path $binDir) {
+  Remove-Item $binDir -Recurse -Force -ErrorAction SilentlyContinue
+  Write-Host "Removed the shortcut guard scripts." -ForegroundColor Green
+}
+
+$hostsPath = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
+if (Test-Path $hostsPath) {
+  $hostsText = Get-Content $hostsPath -Raw -ErrorAction SilentlyContinue
+  if ($hostsText -and $hostsText.Contains('# BEGIN AnyCursor telemetry block')) {
+    Write-Host "The optional telemetry hosts block is still present. Remove it with scripts\privacy.ps1 -Disable (administrator)." -ForegroundColor Yellow
   }
 }
 

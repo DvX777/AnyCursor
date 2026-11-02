@@ -119,11 +119,57 @@ A public bind without a token refuses to start. The supported remote paths are:
 `gateway.allowInsecureRemote: true` is an explicit operator override. Use it
 only behind another network control you trust.
 
+## Client updates and telemetry
+
+AnyCursor does not patch Cursor's client. The integration is a launch flag
+(`--test-backend-url`) on ordinary user shortcuts plus an external gateway
+supervised by a per-user task. Cursor updates replace Cursor's own files; they
+cannot corrupt AnyCursor code, and AnyCursor never writes into
+`resources/app`.
+
+**Shortcut guard.** A per-user task runs at logon and every minute. It:
+
+1. re-applies the flag when Cursor's version changes or a shortcut loses it;
+2. inspects the command line of the running main `Cursor.exe` process;
+3. if Cursor is running without the flag, repairs the shortcuts, writes
+   `state/client-alert.json`, shows a Windows notification and surfaces the
+   warning in the dashboard;
+4. clears the alert once a Cursor process is seen with the flag.
+
+A running process cannot be fixed in place; the alert says to restart Cursor.
+
+**Telemetry.** Cursor sends analytics, metrics, traces and log uploads through
+the same backend URL as inference. With `privacy.blockTelemetry` enabled
+(default), the gateway returns an empty success response and does not forward
+those paths. Only the path is logged; bodies and headers are not. Inference,
+catalog, auth, dashboard and agent calls are not matched. The list is narrow on
+purpose and can be reviewed in `src/gateway/privacy.js`. Statsig feature-gate
+bootstrap is explicitly forwarded: it is a config fetch, not an upload.
+
+Direct client endpoints are outside the gateway. `metrics.cursor.sh` can be
+blocked with the optional `scripts/privacy.ps1` hosts helper (elevated,
+reversible, marked block, backup). `telemetry.cursor.sh` does not resolve as of
+November 2026. Sentry is not blocked because `*.ingest.sentry.io` is shared with
+other applications.
+
+**Limits.** This is privacy hardening, not a way to make an unsupported
+configuration sanctioned. Blocking diagnostics does not guarantee that Cursor's
+own account or abuse systems will never act on unusual usage. Do not share
+Cursor accounts or tokens, and do not use the gateway to serve Cursor's paid
+models to other people.
+
+**Residual risk.** `--test-backend-url` is an internal Cursor switch. If a
+release removes it, AnyCursor cannot force routing from inside the client.
+Shortcut repair will fail visibly; check `AnyCursor: Doctor` and the release
+notes before upgrading Cursor.
+
 ## Out of scope
 
 - a compromised host, root/admin account or malware inside the trust boundary;
 - anyone who can read `host.key` or the owner token;
-- Cursor's own account, telemetry and backend;
+- Cursor's own backend, account decisions and client updates beyond the launch
+  flag; telemetry that traverses the gateway is blocked, but direct endpoints
+  and Cursor's fraud systems are not controlled here;
 - provider-side logging, retention and abuse policies;
 - denial of service at the network layer (use a firewall / proxy).
 
@@ -137,6 +183,10 @@ only behind another network control you trust.
 - [ ] Put TLS in front of any public dashboard.
 - [ ] Review `logs/access.ndjson` after adding users.
 - [ ] Keep Node.js and AnyCursor updated.
+- [ ] Leave `privacy.blockTelemetry` on unless you are debugging a Cursor
+      client issue.
+- [ ] After a Cursor update, check the dashboard for a "Cursor is running
+      without the AnyCursor backend" warning.
 
 Report vulnerabilities privately through the repository's security advisory
 form rather than a public issue.

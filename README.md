@@ -84,7 +84,8 @@ The installer:
 4. registers the **AnyCursor Gateway Watchdog**, a per-user task that supervises the gateway (restarts it within seconds)
 5. registers a login pre-warm task, or falls back to a hidden Startup entry
 6. patches Cursor shortcuts with the local backend flag
-7. waits for the gateway health endpoint
+7. registers the **AnyCursor Shortcut Guard**, which repairs shortcuts and detects a Cursor process that bypassed the gateway
+8. waits for the gateway health endpoint
 
 Admin variant, one UAC prompt:
 
@@ -301,6 +302,40 @@ Open an IDE window when you want the status bar item, `AnyCursor: Doctor`, or th
 ### About `--test-backend-url`
 
 This is Cursor's own internal switch for pointing the desktop app at another backend. Cursor exposes no public alternative. AnyCursor keeps shortcuts pointed at `Cursor.exe` with this flag instead of routing users through a separate launcher.
+
+### Cursor updates and telemetry
+
+Cursor updates itself several times a week. AnyCursor is built so an update cannot quietly break it:
+
+- **No client patching.** AnyCursor never edits `Cursor.exe`, `app.asar`, Electron bundles or the installed extension. It starts Cursor with `--test-backend-url` on a normal shortcut and runs the gateway as a separate background service. An update replaces Cursor's own files, not the shortcut flag or the gateway.
+- **Shortcut guard.** The installer registers **AnyCursor Shortcut Guard**, a per-user task that runs at logon and every minute. It repairs Desktop, Start Menu and taskbar shortcuts when Cursor's version changes or a shortcut loses the flag. It also checks the running `Cursor.exe` command line: if Cursor was launched without the flag it repairs the shortcuts, shows a Windows notification, writes an alert, and the dashboard shows a warning asking you to restart Cursor. A running process cannot pick up a new launch flag.
+- **One assumption.** `--test-backend-url` is Cursor's internal switch. If a future Cursor release removes it, AnyCursor cannot force routing from inside the client; the fix has to be a new transport path. Shortcut repair fails visibly rather than pretending to work.
+
+Telemetry is blocked at the gateway by default:
+
+```json
+"privacy": { "blockTelemetry": true }
+```
+
+Cursor sends analytics, metrics, traces and log uploads through the same backend URL as inference, so AnyCursor sees them. With blocking on, those requests get an empty success response and are **not forwarded**; only the path is logged (`telemetry-blocked`), never the body or headers. Inference, model catalog, auth, dashboard and agent calls are never matched. Statsig feature-gate bootstrap (`AnalyticsService/BootstrapStatsig`) is explicitly forwarded: it is a config fetch, not an upload, and Cursor uses it for feature availability. Set `blockTelemetry` to `false` only if you are debugging a Cursor client issue.
+
+This covers traffic Cursor routes through the backend. A few endpoints are contacted directly by the client, outside AnyCursor:
+
+- `metrics.cursor.sh` is Cursor's direct metrics host.
+- `telemetry.cursor.sh` does not resolve (checked November 2026); it is not the active endpoint.
+- Sentry crash reporting uses a shared domain (`*.ingest.sentry.io`), so AnyCursor does not block it globally.
+
+For an optional, reversible OS-level block of the direct host, run an elevated PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\privacy.ps1 -Enable
+powershell -ExecutionPolicy Bypass -File scripts\privacy.ps1 -Status
+powershell -ExecutionPolicy Bypass -File scripts\privacy.ps1 -Disable
+```
+
+It edits only a marked block in the hosts file, keeps a backup, and flushes DNS.
+
+**What this does and does not do.** Blocking telemetry reduces what Cursor's diagnostics receive about your machine and proxy setup. It does **not** make an unsupported client configuration sanctioned, and it does not guarantee that Cursor's own abuse systems will never flag an account. Do not share Cursor accounts or tokens between people, do not rotate through accounts, and do not use the gateway to serve Cursor's paid models to others. AnyCursor is for your own BYOK providers.
 
 ## Development
 

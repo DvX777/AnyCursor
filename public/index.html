@@ -1221,7 +1221,11 @@
     const models = CFG.models || [];
     const s = STATUS || {};
     const enabled = models.filter((m) => m.enabled !== false).length;
-    const warnings = (META && META.warnings) || [];
+    const warnings = [...((META && META.warnings) || [])];
+    if (s.clientAlert && s.clientAlert.message) {
+      const pid = s.clientAlert.pid ? ` (pid ${s.clientAlert.pid})` : '';
+      warnings.unshift(`Cursor is running without the AnyCursor backend${pid}. Restart Cursor after the shortcuts are repaired.`);
+    }
     const primary = providers[0];
     const routed = primary ? models.filter((m) => m.provider === primary).length : 0;
 

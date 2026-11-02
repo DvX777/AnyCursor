@@ -358,11 +358,18 @@ function normalizeConfig(raw, options = {}) {
     throw new Error(`config.routing.defaultModel "${routing.defaultModel}" is not a configured model`);
   }
 
+  const privacy = {
+    blockTelemetry: true,
+    ...(isPlainObject(interpolated.privacy) ? interpolated.privacy : {}),
+  };
+  privacy.blockTelemetry = privacy.blockTelemetry !== false;
+
   return {
     config: {
       gateway,
       cursor,
       routing,
+      privacy,
       providers,
       models,
     },

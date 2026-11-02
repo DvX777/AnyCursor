@@ -49,8 +49,13 @@ upstream and data-directory changes need one.
 ## Privacy
 
 Credentials stay on the machine, in Windows Credential Manager or environment
-variables. BYOK traffic goes from Cursor to your provider through
-`127.0.0.1`; nothing is proxied through a third-party service.
+variables. BYOK traffic goes from Cursor to your provider through the gateway;
+nothing is proxied through a third-party service.
+
+By default the gateway refuses to forward Cursor's analytics, metrics, traces
+and log uploads, even though Cursor sends them to the same backend URL. Only the
+blocked path is logged. See the repository README, "Cursor updates and
+telemetry", for the optional hosts-file block and its limits.
 
 ## Development
 

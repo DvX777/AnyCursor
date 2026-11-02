@@ -192,6 +192,12 @@ async function doctor() {
     `Gateway URL: ${result.url || 'unknown'}`,
     `Mode: ${result.remote ? 'remote (supervision off)' : 'local supervision'}`,
     result.health ? `Models: ${result.health.models ? result.health.models.length : 0}` : '',
+    result.health && result.health.privacy
+      ? `Telemetry: ${result.health.privacy.enabled ? 'blocked' : 'forwarded'} (${result.health.privacy.blocked} upload(s) stopped)`
+      : '',
+    result.health && result.health.clientAlert
+      ? `Client alert: ${result.health.clientAlert.message}`
+      : '',
     result.health && result.health.warnings && result.health.warnings.length
       ? `Warnings: ${result.health.warnings.join('; ')}`
       : '',

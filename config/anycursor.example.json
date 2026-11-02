@@ -22,6 +22,9 @@
     "onUnknownModel": "native",
     "defaultModel": "claude-anycursor-opencode-deepseek-v4.1-flash"
   },
+  "privacy": {
+    "blockTelemetry": true
+  },
   "providers": {
     "opencode": {
       "type": "openai-compatible",
