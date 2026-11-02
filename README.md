@@ -160,28 +160,31 @@ The provider layer is configuration-driven. Nothing about URLs, ports, model nam
 ```text
 ┌───────────────────────────────┐
 │           Cursor UI           │
-│  Agent · Edit · Ask · Plan    │
-│  Tools · MCP · Subagents      │
-└──────────────┬────────────────┘
+│   Agent · Edit · Ask · Plan   │
+│    Tools · MCP · Subagents    │
+└───────────────────────────────┘
                │ Cursor backend protocol
-┌──────────────▼────────────────┐
-│        AnyCursor Gateway      │
-│  local h1/h2c · 127.0.0.1     │
+               │ local · LAN · VPN · TLS
+┌───────────────────────────────┐
+│       AnyCursor Gateway       │
+│       self-hosted h1/h2c      │
+│    loopback · private · VPS   │
 │                               │
 │  • AvailableModels merge      │
 │  • BYOK routing               │
-│  • RunInference local loop    │
+│  • RunInference streaming     │
 │  • native passthrough         │
 │  • config + settings API      │
-└──────────────┬────────────────┘
+│  • AES-256 vault · ABAC       │
+└───────────────────────────────┘
                │ streaming provider APIs
-┌──────────────▼────────────────┐
+┌───────────────────────────────┐
 │  OpenAI · Anthropic · Google  │
-│  Azure · Bedrock · Custom     │
+│    Azure · Bedrock · Custom   │
 └───────────────────────────────┘
 ```
 
-Cursor's own models are forwarded byte-for-byte to Cursor's backend. BYOK models are intercepted by the gateway and sent to the configured provider.
+Cursor's own models are forwarded byte-for-byte to Cursor's backend. BYOK models are intercepted by the gateway and sent to the configured provider. The same flow runs whether the gateway is on the same machine, a LAN host, a VPS or a Tailscale node.
 
 With Cursor 3.x, Agent Host turns arrive as `InferenceService/RunInference` streams. AnyCursor answers `run_ready`, converts messages/tools, streams text and thinking deltas, returns tool calls, and ends each invocation. Native approvals and the agent loop remain Cursor's.
 
