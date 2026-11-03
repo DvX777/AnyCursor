@@ -519,10 +519,15 @@ const yieldToLoop = () => new Promise((r) => setImmediate(r));
 function localShell(command, cwd) {
   const { execFile } = require('child_process');
   const dir = cwd ? resolvePath(cwd) : WORKSPACE;
+  const windows = process.platform === 'win32';
+  const file = windows ? 'powershell.exe' : (process.env.SHELL || '/bin/sh');
+  const args = windows
+    ? ['-NoProfile', '-NonInteractive', '-Command', String(command || '')]
+    : ['-lc', String(command || '')];
   return new Promise((resolve) => {
     execFile(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', String(command || '')],
+      file,
+      args,
       { cwd: dir, timeout: 60000, maxBuffer: 5 * 1024 * 1024, windowsHide: true },
       (err, stdout, stderr) => {
         const code = err && typeof err.code === 'number' ? err.code : (err ? 1 : 0);

@@ -1,0 +1,94 @@
+name: anycursor
+arch: __ARCH__
+platform: linux
+version: __VERSION__
+release: "1"
+version_schema: semver
+section: net
+priority: optional
+maintainer: __MAINTAINER__
+description: |
+  AnyCursor is a self-hosted model gateway and Cursor extension for BYOK
+  models. It keeps Cursor's native Agent, tools, MCP, subagents and approvals
+  while routing model traffic to providers you control. Secrets are encrypted
+  at rest with a host key outside the configuration file.
+vendor: AnyCursor
+homepage: __HOMEPAGE__
+license: MIT
+umask: 0o022
+
+depends:
+  - ca-certificates
+
+overrides:
+  deb:
+    depends:
+      - ca-certificates
+      - libc6 (>= 2.28)
+      - libstdc++6
+      - libgcc-s1
+      - libatomic1
+  rpm:
+    depends:
+      - ca-certificates
+      - glibc >= 2.28
+      - libstdc++
+      - libgcc
+      - libatomic
+
+contents:
+  - src: __ROOTFS__/app
+    dst: /usr/lib/anycursor
+    type: tree
+
+  - src: __ROOTFS__/node/node
+    dst: /usr/lib/anycursor/bin/node
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+
+  - src: __ROOTFS__/node/LICENSE
+    dst: /usr/lib/anycursor/THIRD_PARTY_LICENSES/node-LICENSE
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+
+  - src: __ROOTFS__/systemd/anycursor.service
+    dst: /usr/lib/systemd/system/anycursor.service
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+
+  - src: __ROOTFS__/sysusers/anycursor.conf
+    dst: /usr/lib/sysusers.d/anycursor.conf
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+
+  - src: __ROOTFS__/tmpfiles/anycursor.conf
+    dst: /usr/lib/tmpfiles.d/anycursor.conf
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+
+  - src: __ROOTFS__/doc
+    dst: /usr/share/doc/anycursor
+    type: tree
+
+scripts:
+  postinstall: __SCRIPTS__/postinstall.sh
+  preremove: __SCRIPTS__/preremove.sh
+  postremove: __SCRIPTS__/postremove.sh
+
+rpm:
+  summary: Self-hosted model gateway for Cursor
+  group: Applications/Internet
+  compression: zstd
+
+deb:
+  compression: xz

@@ -1,0 +1,96 @@
+name: Linux packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "packaging/**"
+      - "scripts/build-linux.js"
+      - "deploy/linux/**"
+      - ".github/workflows/linux-packages.yml"
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build amd64 packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Build .deb and .rpm
+        run: node scripts/build-linux.js --arch amd64 --packagers deb,rpm
+
+      - name: Show artifacts
+        run: |
+          ls -lh dist
+          cat dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anycursor-linux-amd64
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/SHA256SUMS
+          if-no-files-found: error
+
+  test-deb:
+    name: Install .deb on Ubuntu 24.04
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: anycursor-linux-amd64
+          path: dist
+
+      - name: Install, verify service, uninstall
+        run: |
+          set -euxo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y ./dist/anycursor_0.6.0-1_amd64.deb
+
+          sudo systemctl is-enabled anycursor.service
+          sudo systemctl is-active anycursor.service
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:43110/health > /tmp/health.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          cat /tmp/health.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/health.json') as handle:
+              health = json.load(handle)
+          assert health['ok'] is True, health
+          assert health['version'] == '0.6.0', health['version']
+          assert health['privacy']['enabled'] is True, health['privacy']
+          print('health assertions passed')
+          PY
+
+          test "$(stat -c '%U:%G %a' /etc/anycursor/config.json)" = "anycursor:anycursor 600"
+          test "$(stat -c '%U:%G %a' /etc/anycursor/anycursor.env)" = "anycursor:anycursor 600"
+          test -f /var/lib/anycursor/secrets/host.key
+          test "$(stat -c '%U:%G %a' /var/lib/anycursor/secrets/host.key)" = "anycursor:anycursor 600"
+
+          sudo systemctl stop anycursor.service
+          sudo dpkg -r anycursor
+
+          # Remove keeps configuration and data.
+          test -f /etc/anycursor/config.json
+          test -d /var/lib/anycursor
+          test -f /var/lib/anycursor/secrets/host.key

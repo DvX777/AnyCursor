@@ -41,11 +41,13 @@ function arg(name, fallback) {
 }
 
 function defaultConfigPath() {
-  const local = path.join(
-    process.env.LOCALAPPDATA || process.env.USERPROFILE || '',
-    'AnyCursor',
-    'config.json',
-  );
+  const local = process.platform === 'win32'
+    ? path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || '', 'AnyCursor', 'config.json')
+    : path.join(
+        process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || '', '.config'),
+        'anycursor',
+        'config.json',
+      );
   const repo = path.join(__dirname, '..', '..', 'config', 'anycursor.json');
   if (fs.existsSync(repo)) return repo;
   return local;
@@ -571,7 +573,8 @@ function handleLiveTurn(stream, hdrs, id, reqPath) {
                 && /^ERROR: spawn failed/.test(result)
                 && process.env.CURSOR_PROXY_SHELL_FALLBACK === '1') {
               const local = await adapter.localShell(argsObj.command, argsObj.working_directory);
-              result = `${local}\n(note: Cursor's terminal could not spawn; ran via local PowerShell)`;
+              const shellName = process.platform === 'win32' ? 'PowerShell' : 'shell';
+              result = `${local}\n(note: Cursor's terminal could not spawn; ran via local ${shellName})`;
               log({
                 id, ts: new Date().toISOString(), dir: 'shell-fallback', protocol: 'h2',
                 command: String(argsObj.command || '').slice(0, 300),

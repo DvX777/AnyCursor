@@ -28,7 +28,11 @@ with **AES-256-GCM** before they are written to disk.
 - On Windows, the host key is stored in **Windows Credential Manager** (DPAPI)
   and is not kept next to the config. On other platforms it is a random 32-byte
   file at `<gateway.dataDir>/secrets/host.key` with owner-only permissions
-  (mode `0600`).
+  (mode `0600`). The Linux package uses `/var/lib/anycursor/secrets/host.key`,
+  owned by the `anycursor` service user in a `0700` directory.
+- The Linux service runs as `anycursor`, binds to loopback by default, and
+  relies on full-disk encryption plus the service user boundary. Back up the
+  host key separately from the config.
 - The config contains only an authenticated encrypted envelope; no key material
   is stored with it.
 - Existing plaintext configs are migrated on load; an **encrypted**

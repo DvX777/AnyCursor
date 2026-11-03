@@ -1,0 +1,42 @@
+[Unit]
+Description=AnyCursor self-hosted model gateway
+Documentation=https://github.com/DvX777/AnyCursor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=anycursor
+Group=anycursor
+WorkingDirectory=/usr/lib/anycursor
+EnvironmentFile=-/etc/anycursor/anycursor.env
+ExecStart=/usr/lib/anycursor/bin/node /usr/lib/anycursor/src/gateway/index.js --config /etc/anycursor/config.json
+Restart=always
+RestartSec=2
+TimeoutStopSec=15
+
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+
+ReadWritePaths=/etc/anycursor /var/lib/anycursor
+
+# Node needs writable executable memory for its JIT. Do not set
+# MemoryDenyWriteExecute=true; it breaks Node.
+MemoryDenyWriteExecute=false
+
+[Install]
+WantedBy=multi-user.target

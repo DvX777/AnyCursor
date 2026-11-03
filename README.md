@@ -115,6 +115,52 @@ If you do configure a Cursor key or override URL, Cursor can refuse first-party 
 
 Manual routing, only if you skip shortcut patching: launch Cursor with `--test-backend-url http://127.0.0.1:43110`, or run **AnyCursor: Repair Cursor Shortcuts**. Nothing else needs to change in Cursor.
 
+## Linux (0.6.0)
+
+AnyCursor 0.6.0 adds native Linux **server** packages. The package runs the
+gateway under systemd and bundles Node.js 24 LTS, so the host does not need a
+system Node upgrade or NodeSource repository.
+
+Supported: Ubuntu 22.04 / 24.04 / 26.04 LTS, Debian 12 / 13, AlmaLinux 9 / 10,
+Rocky Linux 9 / 10 and the current two Fedora releases. `x86_64` is tested
+first; `arm64` packages are buildable but not yet part of the support claim.
+
+```bash
+# Debian / Ubuntu
+sudo apt install ./anycursor_0.6.0-1_amd64.deb
+
+# AlmaLinux / Rocky Linux / Fedora
+sudo dnf install ./anycursor-0.6.0-1.x86_64.rpm
+```
+
+The package creates the unprivileged `anycursor` service user, binds to
+`127.0.0.1:43110` by default, and seeds:
+
+```text
+/etc/anycursor/config.json       gateway configuration, 0600
+/etc/anycursor/anycursor.env     owner token and provider keys, 0600
+/var/lib/anycursor/              logs, secrets, backups
+```
+
+```bash
+sudo systemctl status anycursor
+curl -s http://127.0.0.1:43110/health
+```
+
+For remote use, set `ANY_CURSOR_ACCESS_TOKEN` in `anycursor.env` and a
+non-loopback `gateway.host` in `config.json`. A public bind without a token
+refuses to start. Tailscale, an SSH tunnel or Caddy + TLS are the supported
+paths.
+
+Full guide: [deploy/linux/README.md](deploy/linux/README.md). Linux desktop
+integration for Cursor itself is planned for 0.6.1.
+
+Build packages locally with:
+
+```bash
+npm run build:linux
+```
+
 ## Run It Anywhere
 
 **AnyCursor has no limit.** Local, LAN, VPS, homelab or Tailscale — it is the same gateway, wherever it runs.
@@ -356,7 +402,8 @@ AnyCursor/
 |-- assets/          logo artwork
 |-- extension/       Cursor extension: supervision, settings, lifecycle
 |-- public/          Local dashboard and settings UI
-|-- deploy/          VPS, systemd, Docker and Caddy recipes
+|-- packaging/       Linux nfpm config, systemd unit, sysusers/tmpfiles, scripts
+|-- deploy/          VPS, systemd, Docker, Linux packages and Caddy recipes
 |-- SECURITY.md      Threat model, roles and operator checklist
 |-- src/
 |   |-- gateway/     h1/h2c gateway, RunInference, live turns

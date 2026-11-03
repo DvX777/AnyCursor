@@ -203,8 +203,8 @@ class ConfigService {
       const loaded = normalizeConfig(resolveSecrets(effectiveRaw, this.secrets));
       if (!this.secrets) {
         loaded.warnings.unshift(this.vault.enabled
-          ? 'Windows Credential Manager is unavailable; secrets are encrypted at rest with the host key'
-          : 'Windows Credential Manager is unavailable; secrets remain in the config file');
+          ? 'No credential store is available; secrets are encrypted at rest with the host key'
+          : 'No credential store is available; secrets remain in the config file');
       }
       if (this.encryptionError) {
         loaded.warnings.unshift(`Secret encryption warning: ${this.encryptionError}`);

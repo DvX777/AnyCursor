@@ -1,0 +1,170 @@
+{
+  "$schema": "/usr/lib/anycursor/schema/anycursor.schema.json",
+  "gateway": {
+    "host": "127.0.0.1",
+    "port": 43110,
+    "publicUrl": "${ANY_CURSOR_PUBLIC_URL:-}",
+    "accessToken": "${ANY_CURSOR_ACCESS_TOKEN:-}",
+    "allowInsecureRemote": false,
+    "trustPrivateNetworks": false,
+    "logLevel": "info",
+    "dataDir": "/var/lib/anycursor"
+  },
+  "cursor": {
+    "backendUrl": "",
+    "restartPolicy": "ask",
+    "patchShortcuts": false,
+    "supervise": false,
+    "modelIdPrefix": "claude-anycursor"
+  },
+  "routing": {
+    "nativePassthrough": true,
+    "onUnknownModel": "native",
+    "defaultModel": "claude-anycursor-opencode-deepseek-v4.1-flash"
+  },
+  "privacy": {
+    "blockTelemetry": true
+  },
+  "providers": {
+    "opencode": {
+      "type": "openai-compatible",
+      "baseUrl": "https://opencode.ai/inference/go/v1",
+      "apiKey": "${OPENCODE_API_KEY:-}",
+      "endpoint": "/chat/completions",
+      "modelsDevProvider": "opencode-go",
+      "credential": "opencode-go"
+    },
+    "anthropic": {
+      "type": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "apiKey": "${ANTHROPIC_API_KEY:-}",
+      "version": "2023-06-01"
+    },
+    "google": {
+      "type": "google",
+      "baseUrl": "https://generativelanguage.googleapis.com",
+      "apiKey": "${GEMINI_API_KEY:-}"
+    },
+    "azure": {
+      "type": "azure-openai",
+      "endpoint": "https://my-resource.openai.azure.com",
+      "deployment": "gpt-5",
+      "apiVersion": "2024-10-21",
+      "apiKey": "${AZURE_OPENAI_API_KEY:-}"
+    },
+    "bedrock": {
+      "type": "bedrock",
+      "region": "us-east-1",
+      "accessKeyId": "${AWS_ACCESS_KEY_ID:-}",
+      "secretAccessKey": "${AWS_SECRET_ACCESS_KEY:-}",
+      "sessionToken": "${AWS_SESSION_TOKEN:-}"
+    }
+  },
+  "models": [
+    {
+      "id": "deepseek-v4.1-flash",
+      "displayName": "DeepSeek V4.1 Flash",
+      "shortName": "DeepSeek V4.1",
+      "providerLabel": "OpenCode Go",
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash",
+      "vendor": "DEEPSEEK",
+      "contextWindow": 200000,
+      "maxOutput": 8192,
+      "effort": {
+        "tiers": [
+          {
+            "id": "low",
+            "label": "Low",
+            "value": "low"
+          },
+          {
+            "id": "high",
+            "label": "High",
+            "value": "high"
+          },
+          {
+            "id": "max",
+            "label": "Max",
+            "value": "max"
+          }
+        ],
+        "default": "high",
+        "requestField": "reasoning_effort"
+      },
+      "contextOptions": [
+        {
+          "id": "272k",
+          "label": "272K",
+          "value": 272000
+        },
+        {
+          "id": "1m",
+          "label": "1M",
+          "value": 1000000
+        }
+      ],
+      "fast": false,
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "reasoning": true,
+        "streaming": true,
+        "cache": true
+      },
+      "pricing": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "order": 10,
+      "enabled": true,
+      "legacyIds": [
+        "deepseek-v4.1-flash"
+      ]
+    },
+    {
+      "id": "claude-sonnet-5.5",
+      "displayName": "Claude Sonnet 5.5",
+      "shortName": "Claude Sonnet",
+      "providerLabel": "Anthropic",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "vendor": "ANTHROPIC",
+      "contextWindow": 200000,
+      "maxOutput": 8192,
+      "effort": {
+        "tiers": [
+          {
+            "id": "low",
+            "label": "Low",
+            "value": "low"
+          },
+          {
+            "id": "medium",
+            "label": "Medium",
+            "value": "medium"
+          },
+          {
+            "id": "high",
+            "label": "High",
+            "value": "high"
+          }
+        ],
+        "default": "high",
+        "requestField": "thinking.budget_tokens"
+      },
+      "fast": false,
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "reasoning": true,
+        "streaming": true,
+        "cache": true
+      },
+      "order": 20,
+      "enabled": true
+    }
+  ]
+}
