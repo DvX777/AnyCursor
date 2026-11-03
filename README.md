@@ -117,13 +117,15 @@ Manual routing, only if you skip shortcut patching: launch Cursor with `--test-b
 
 ## Linux (0.6.0)
 
-AnyCursor 0.6.0 adds native Linux **server** packages. The package runs the
-gateway under systemd and bundles Node.js 24 LTS, so the host does not need a
-system Node upgrade or NodeSource repository.
+AnyCursor 0.6.0 adds native Linux **server** packages (alpha). The package runs
+the gateway under systemd and bundles Node.js 24 LTS, so the host does not need
+a system Node upgrade or NodeSource repository.
 
-Supported: Ubuntu 22.04 / 24.04 / 26.04 LTS, Debian 12 / 13, AlmaLinux 9 / 10,
-Rocky Linux 9 / 10 and the current two Fedora releases. `x86_64` is tested
-first; `arm64` packages are buildable but not yet part of the support claim.
+**Target support:** Ubuntu 22.04 / 24.04 / 26.04 LTS, Debian 12 / 13,
+AlmaLinux 9 / 10, Rocky Linux 9 / 10 and the current two Fedora releases.
+`x86_64` is tested first; `arm64` packages are buildable but not yet part of the
+support claim. The packaging matrix is still being validated on real hosts;
+treat the table as the target until the release notes say it is verified.
 
 ```bash
 # Debian / Ubuntu

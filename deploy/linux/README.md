@@ -1,5 +1,10 @@
 # AnyCursor on Linux
 
+Status: **0.6.0-alpha**. The gateway packages build and the bundled Node 24
+runtime has been exercised; install and systemd validation on the full matrix is
+still in progress. The table below is the target support claim, not a statement
+that every cell has passed.
+
 AnyCursor 0.6.0 ships the gateway as a native Linux service. This package is the
 **server** side: it runs the gateway under systemd and can be reached from
 Cursor on another machine over a private network, SSH tunnel or TLS proxy.
