@@ -29,15 +29,18 @@ Other distributions may work from source. They are not officially supported.
 
 ## Install
 
-Direct signed packages from the GitHub Release:
+Direct packages from the GitHub Release (SHA256SUMS is published alongside):
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./anycursor_0.6.0_amd64.deb
+sudo apt install ./anycursor_0.6.0-1_amd64.deb
 
 # AlmaLinux / Rocky / Fedora
 sudo dnf install ./anycursor-0.6.0-1.x86_64.rpm
 ```
+
+GPG signing will be added when the release key is configured. Do not treat an
+unsigned artifact as trusted until its SHA256 matches the published value.
 
 The package installs a bundled Node.js runtime, so no NodeSource repository or
 system Node upgrade is required.
