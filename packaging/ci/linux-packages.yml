@@ -1,3 +1,7 @@
+# Parked outside .github/workflows so a push does not trigger it.
+# Build locally with:
+#   node scripts/build-linux.js --arch amd64 --packagers deb,rpm
+
 name: Linux packages
 
 on:
@@ -59,7 +63,8 @@ jobs:
           set -euxo pipefail
 
           sudo apt-get update
-          sudo apt-get install -y ./dist/anycursor_0.6.0-1_amd64.deb
+          DEB=$(ls dist/anycursor_*_amd64.deb | head -n 1)
+          sudo apt-get install -y "$DEB"
 
           sudo systemctl is-enabled anycursor.service
           sudo systemctl is-active anycursor.service

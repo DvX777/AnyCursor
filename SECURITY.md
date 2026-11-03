@@ -191,6 +191,10 @@ notes before upgrading Cursor.
       client issue.
 - [ ] After a Cursor update, check the dashboard for a "Cursor is running
       without the AnyCursor backend" warning.
+- [ ] On Linux, keep `/etc/anycursor` and `/var/lib/anycursor` owned by
+      `anycursor`, with full-disk encryption enabled.
+- [ ] On Linux, set `ANY_CURSOR_ACCESS_TOKEN` before binding to a non-loopback
+      address.
 
 Report vulnerabilities privately through the repository's security advisory
 form rather than a public issue.
