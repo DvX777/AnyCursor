@@ -57,6 +57,9 @@ root filesystem, and writes `.deb`/`.rpm` plus `dist/SHA256SUMS`.
 - **No console flashes.** Background tasks run inside the windowless watchdog
   and spawn console tools with `CreateNoWindow`. Never add a per-minute
   `powershell.exe` scheduled task.
+- **Keep the extension host quiet.** Do not use `"activationEvents": ["*"]` or a
+  persistent polling timer. Use `onStartupFinished`, explicit `onCommand`
+  events and window-focus refreshes; the watchdog owns gateway supervision.
 - Do not run `npm run package:extension` casually; it rewrites the VSIX and
   changes release artifacts.
 

@@ -2,7 +2,7 @@
   "name": "anycursor",
   "displayName": "AnyCursor",
   "description": "Bring your own BYOK models into Cursor's native Agent, tools, MCP, subagents and approvals through a self-hosted gateway.",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "publisher": "anycursor",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -31,7 +31,12 @@
     "ui"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished",
+    "onCommand:anycursor.openSettings",
+    "onCommand:anycursor.openConfigFile",
+    "onCommand:anycursor.doctor",
+    "onCommand:anycursor.startGateway",
+    "onCommand:anycursor.repairShortcuts"
   ],
   "main": "./src/extension.js",
   "contributes": {

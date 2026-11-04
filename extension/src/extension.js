@@ -14,7 +14,6 @@ const DEFAULT_CONFIG = path.join(
 );
 
 let statusItem;
-let healthTimer;
 let starting = false;
 let lastStartAt = 0;
 
@@ -244,15 +243,16 @@ function activate(context) {
     setStatus('AnyCursor: error', String(error), 'error');
   });
 
-  healthTimer = setInterval(() => {
-    ensureGateway().catch(() => {});
-  }, 10000);
-  context.subscriptions.push({ dispose: () => clearInterval(healthTimer) });
+  // Refresh on focus instead of polling every 10 seconds. This keeps the
+  // extension host quiet and lets it exit promptly when Cursor closes; the
+  // windowless watchdog owns gateway supervision.
+  context.subscriptions.push(vscode.window.onDidChangeWindowState((state) => {
+    if (state.focused) ensureGateway().catch(() => {});
+  }));
 }
 
 function deactivate() {
-  if (healthTimer) clearInterval(healthTimer);
-  healthTimer = undefined;
+  // No timers or child processes are owned by this extension host.
 }
 
 module.exports = { activate, deactivate };
