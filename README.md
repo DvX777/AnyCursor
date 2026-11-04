@@ -449,6 +449,32 @@ Cursor gates its own models by plan. On a free plan the agent backend allows onl
 
 On a paid plan the same message can also appear when a custom provider key or an **Override OpenAI Base URL** is stored in Cursor's **Settings → Models → API Keys**: Cursor tries the custom-key path, and some first-party models do not accept it. AnyCursor never reads or changes that configuration. See [Cursor settings AnyCursor does not need](#cursor-settings-anycursor-does-not-need).
 
+### Cursor update fails with "Access is denied: resources"
+
+Cursor's updater swaps the `resources` directory while Cursor is supposed to be
+closed. Any leftover `Cursor.exe` helper (`gitWorker`, `jsonServer`, an
+extension host) or a stuck `CodeSetup`/`inno_updater` process keeps a handle on
+`resources`, and the update fails after eleven move attempts. AnyCursor does not
+patch `resources`; the shortcut guard now pauses while an updater or installer is
+running so it cannot race the swap.
+
+1. Save your work and close every Cursor window.
+2. Wait until Task Manager has no `Cursor.exe` entries, including helpers.
+3. Retry the update.
+4. If a `CodeSetup`/`inno_updater` process is stuck, end it and run the official
+   Cursor installer again. A clean installer run replaces `resources` reliably.
+5. Restart Cursor. The shortcut guard restores `--test-backend-url` within a
+   minute; if the window is already open without it, restart Cursor.
+
+Helper script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\repair-cursor-update.ps1
+```
+
+It closes Cursor, ends leftover Cursor/installer processes and relaunches
+Cursor. It does not delete user data or Cursor settings.
+
 ### Gateway is down
 
 ```powershell

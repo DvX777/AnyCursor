@@ -79,6 +79,19 @@ function Resolve-CursorExe {
   return $null
 }
 
+# Cursor's updater moves the application and rewrites shortcuts. Do not race it
+# while an updater or installer is running; a shortcut repair attempt during the
+# swap only adds noise and can collide with the installer.
+$updaters = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+  $_.Name -match '^(inno_updater|unins000|CodeSetup|is-)'
+})
+if ($updaters.Count -gt 0) {
+  $names = ($updaters | ForEach-Object { $_.Name } | Select-Object -Unique) -join ', '
+  Write-GuardLog "Cursor update/installer running ($names); skipping shortcut check"
+  Write-Quiet "Cursor update/installer is running; skipping shortcut check."
+  exit 0
+}
+
 $exe = Resolve-CursorExe
 if (-not $exe) {
   Write-Quiet "Cursor.exe not found; nothing to guard." "Yellow"

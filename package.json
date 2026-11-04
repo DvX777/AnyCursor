@@ -17,6 +17,7 @@
     "install:windows": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
     "install:windows:admin": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -RequestAdmin",
     "repair:shortcuts": "powershell -ExecutionPolicy Bypass -File scripts/repair-shortcuts.ps1",
+    "repair:cursor-update": "powershell -ExecutionPolicy Bypass -File scripts/repair-cursor-update.ps1",
     "uninstall:windows": "powershell -ExecutionPolicy Bypass -File scripts/uninstall.ps1"
   }
 }
