@@ -13,7 +13,6 @@ _Your keys. Your models. Cursor's native experience. No second app to open._
 
 <p>
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows&logoColor=white">
-  <img alt="Linux experimental" src="https://img.shields.io/badge/Linux-Experimental-orange?style=for-the-badge&logo=linux&logoColor=white">
   <img alt="Cursor" src="https://img.shields.io/badge/Cursor-3.x-000000?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge">
 </p>
@@ -32,17 +31,6 @@ _Your keys. Your models. Cursor's native experience. No second app to open._
 AnyCursor is a model gateway and Cursor extension that lets you run **your own API keys and models** through Cursor's normal Agent/Edit experience. Cursor keeps its native UI, tools, MCP servers, subagents, approvals and history. The gateway handles the model transport.
 
 It is built for people who want their own models in Cursor without opening a second app, changing their workflow, or giving up native Cursor features.
-
-> **Linux support is experimental and under active development by the Engram Labs R&D Department.**
->
-> The 0.6.0 Linux packages are **not fully tested or developed perfectly yet**. They are
-> being validated on the supported distributions, and a stable release will be
-> published as soon as the packaging, systemd integration and install matrix are
-> reliable. Until then, use them at your own risk. You are free to fork this
-> repository and develop or port AnyCursor for your own Linux setup — the DIY
-> route is intentional.
->
-> The Windows release is the current stable path.
 
 ## Features
 
