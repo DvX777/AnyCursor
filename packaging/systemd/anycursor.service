@@ -1,6 +1,6 @@
 [Unit]
 Description=AnyCursor self-hosted model gateway
-Documentation=https://github.com/DvX777/AnyCursor
+Documentation=https://github.com/Engram-Labs-Inc/AnyCursor
 After=network-online.target
 Wants=network-online.target
 

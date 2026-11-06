@@ -67,8 +67,8 @@ It is built for people who want their own models in Cursor without opening a sec
 ### Install
 
 ```powershell
-git clone https://github.com/DvX777/Anycursor.git
-cd Anycursor
+git clone https://github.com/Engram-Labs-Inc/AnyCursor.git
+cd AnyCursor
 npm run install:windows
 ```
 

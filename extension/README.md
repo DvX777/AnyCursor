@@ -1,6 +1,6 @@
 # AnyCursor
 
-<img src="https://raw.githubusercontent.com/DvX777/AnyCursor/main/extension/assets/banner.png?v=0.3.9" alt="AnyCursor" height="56">
+<img src="https://raw.githubusercontent.com/Engram-Labs-Inc/AnyCursor/main/extension/assets/banner.png?v=0.3.9" alt="AnyCursor" height="56">
 
 Use your own models inside Cursor — with Cursor's native Agent, tools, MCP,
 subagents and approvals.

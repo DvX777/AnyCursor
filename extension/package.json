@@ -68,11 +68,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/DvX777/Anycursor.git"
+    "url": "https://github.com/Engram-Labs-Inc/AnyCursor.git"
   },
-  "homepage": "https://github.com/DvX777/Anycursor",
+  "homepage": "https://github.com/Engram-Labs-Inc/AnyCursor",
   "bugs": {
-    "url": "https://github.com/DvX777/Anycursor/issues"
+    "url": "https://github.com/Engram-Labs-Inc/AnyCursor/issues"
   },
   "capabilities": {
     "untrustedWorkspaces": {

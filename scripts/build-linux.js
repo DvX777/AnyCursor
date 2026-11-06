@@ -33,9 +33,9 @@ const DIST_DIR = path.join(ROOT, 'dist');
 const NODE_VERSION = process.env.ANY_CURSOR_NODE_VERSION || '24.22.2';
 const NFPM_VERSION = process.env.NFPM_VERSION || '2.48.0';
 const MAINTAINER = process.env.ANY_CURSOR_MAINTAINER
-  || 'DvX777 <DvX777@users.noreply.github.com>';
+  || 'Engram Labs Inc. <dev_docnt@proton.me>';
 const HOMEPAGE = process.env.ANY_CURSOR_HOMEPAGE
-  || 'https://github.com/DvX777/AnyCursor';
+  || 'https://github.com/Engram-Labs-Inc/AnyCursor';
 
 function arg(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
